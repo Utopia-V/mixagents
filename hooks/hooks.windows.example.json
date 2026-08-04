@@ -1,0 +1,19 @@
+{
+  "description": "One-shot plaintext task handoff for the DeepSeek-backed v4_flash_worker.",
+  "hooks": {
+    "SubagentStart": [
+      {
+        "matcher": "^v4_flash_worker$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\ABSOLUTE\\\\PATH\\\\TO\\\\plaintext-handoff.ps1\" -Mode hook",
+            "timeout": 10,
+            "statusMessage": "Delivering the staged Flash assignment",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+# Security
+
+## API keys
+
+Never commit a DeepSeek API key, paste it into a prompt, include it in a screenshot, or store it as `experimental_bearer_token`. The repository templates reference only `DEEPSEEK_API_KEY`.
+
+If a key has been exposed, revoke or rotate it in the DeepSeek console before doing anything else. Do not open a public issue containing the key, request headers, or an unredacted configuration dump.
+
+The portable template uses Codex's `env_key` provider setting. The Windows live-environment variant uses Codex's command-backed authentication to read `DEEPSEEK_API_KEY` from the current user's environment at request time. The command prints the token only to Codex's authentication channel; validation instructions must never print it to the task transcript.
+
+## Data boundary
+
+When `v4_flash_worker` runs, the task context and tool results supplied to that child are sent to the DeepSeek API. A read-only sandbox limits filesystem mutation; it does not prevent disclosure through model input. Parent-session permission selections may also override a custom agent's sandbox default in current Codex releases.
+
+Do not delegate private source, secrets, personal data, regulated data, or other sensitive material unless the user has accepted DeepSeek as a processor for that material.
+
+## Plaintext handoff Hook
+
+The recommended V2 route uses a user-trusted `SubagentStart` command Hook. The
+parent stages one complete assignment in local user state; the Hook claims it
+for the next exact `v4_flash_worker` child and injects it as developer context.
+The assignment is therefore briefly present as plaintext on local disk before
+it is sent to DeepSeek. This mechanism is a transport workaround, not an
+encryption or data-loss-prevention boundary.
+
+Default state locations are:
+
+- Windows: `%LOCALAPPDATA%\Codex\plaintext-subagent-handoff`
+- macOS/Linux with `XDG_STATE_HOME`: `$XDG_STATE_HOME/codex/plaintext-subagent-handoff`
+- other macOS/Linux environments: `~/.local/state/codex/plaintext-subagent-handoff`
+
+The implementation allows one pending Flash assignment, rejects an active
+collision, matches the exact agent type, atomically claims the pending item,
+deletes it after injection, rejects replay, and defaults to a five-minute TTL.
+A later stage operation removes a structurally valid item only after its expiry
+is verifiable. Unknown or malformed state is not overwritten automatically.
+These controls prevent accidental stale or cross-role delivery; they do not
+protect the plaintext from another process acting with the same user account.
+
+Do not stage secrets or material that the user has not authorized for the
+DeepSeek boundary. If a spawn fails before the Hook consumes the assignment,
+let the pending item expire before staging another, or inspect and remove only
+the exact pending file after confirming its path and purpose.
+
+Review the installed Hook command and script before trusting them through
+`/hooks`. Codex records trust against the Hook definition; a material definition
+change requires renewed review. Never bypass or forge the trust hash merely to
+make installation non-interactive.
+
+## Cost and compatibility
+
+DeepSeek API use is billed separately from an OpenAI or ChatGPT subscription. The installation workflow deliberately makes no provider request. The smoke test makes a small paid API request only when the user explicitly runs it.
+
+DeepSeek's Responses API is not a complete implementation of every OpenAI Responses feature. Consult the current compatibility table before depending on conversation state, background execution, storage, service tiers, or another advanced request field.

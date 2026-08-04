@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use V4 Flash Worker"
+  short_description: "Reliable plaintext handoff to DeepSeek Flash"
+  default_prompt: "Use $use-v4-flash-worker to delegate this bounded task through the installed plaintext Hook."

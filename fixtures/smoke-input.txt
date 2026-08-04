@@ -1,0 +1,5 @@
+codex
+deepseek-v4-flash
+responses
+native-subagent
+parent-owned-integration
