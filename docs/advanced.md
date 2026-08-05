@@ -52,8 +52,9 @@ Hook matcher、脚本中的 role、skill、`AGENTS.md` 索引与 smoke oracle �
 
 Windows Desktop live smoke 已验证 OpenAI parent → DeepSeek child → native callback。
 PowerShell 协议测试在 Windows 通过；Python 3 协议测试在 Windows 和 Linux/WSL
-通过，Linux 还覆盖了 `XDG_STATE_HOME`。macOS 使用同一 Python/POSIX 实现，但
-尚未进入实机基线，欢迎通过 Issue 或 PR 补充可复现证据。
+通过，Linux 还覆盖了 `XDG_STATE_HOME`。macOS 使用同一 Python/POSIX Hook 实现，
+钥匙串 Agent 模板已有结构化验证；真实 macOS provider smoke 仍欢迎通过 Issue 或
+PR 补充可复现证据。
 
 Codex `0.145.0` 将可配置 subagent 模型与 reasoning effort 的 Multi-agent V2
 标记为稳定。custom agent、Hook 和跨 provider transport 仍在演进，优先使用当前
@@ -63,7 +64,8 @@ Codex `0.145.0` 将可配置 subagent 模型与 reasoning effort 的 Multi-agent
 
 | 路径 | 用途 |
 | --- | --- |
-| [`agents/v4-flash-worker.toml`](../agents/v4-flash-worker.toml) | macOS/Linux Agent 模板 |
+| [`agents/v4-flash-worker.toml`](../agents/v4-flash-worker.toml) | Linux 环境变量 Agent 模板 |
+| [`agents/macos-keychain/v4-flash-worker.toml`](../agents/macos-keychain/v4-flash-worker.toml) | macOS 钥匙串 Agent 模板 |
 | [`agents/windows-live-env/v4-flash-worker.toml`](../agents/windows-live-env/v4-flash-worker.toml) | Windows 实时读取用户环境变量的模板 |
 | [`skills/use-v4-flash-worker/SKILL.md`](../skills/use-v4-flash-worker/SKILL.md) | 按需加载的选择、交付、等待与失败协议 |
 | [`hooks/plaintext-handoff.ps1`](../hooks/plaintext-handoff.ps1) | Windows stage / Hook 脚本 |

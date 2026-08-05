@@ -2,11 +2,11 @@
 
 ## API keys
 
-Never commit a DeepSeek API key, paste it into a prompt, include it in a screenshot, or store it as `experimental_bearer_token`. The repository templates reference only `DEEPSEEK_API_KEY`.
+Never commit a DeepSeek API key, paste it into a prompt, include it in a screenshot, or store it as `experimental_bearer_token`. The repository templates reference only platform secret identifiers such as `DEEPSEEK_API_KEY` or the macOS Keychain service name `com.example.codex.deepseek`, never a plaintext key.
 
 If a key has been exposed, revoke or rotate it in the DeepSeek console before doing anything else. Do not open a public issue containing the key, request headers, or an unredacted configuration dump.
 
-The portable template uses Codex's `env_key` provider setting. The Windows live-environment variant uses Codex's command-backed authentication to read `DEEPSEEK_API_KEY` from the current user's environment at request time. The command prints the token only to Codex's authentication channel; validation instructions must never print it to the task transcript.
+The Linux template uses Codex's `env_key` provider setting. The macOS variant uses Codex's command-backed authentication to read a generic password from the current user's Keychain item named `com.example.codex.deepseek`. The Windows live-environment variant uses command-backed authentication to read `DEEPSEEK_API_KEY` from the current user's environment at request time. These commands print the token only to Codex's authentication channel; validation instructions must never print it to the task transcript.
 
 ## Data boundary
 

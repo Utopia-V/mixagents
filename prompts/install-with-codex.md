@@ -25,8 +25,10 @@ Scope and invariants:
   and report the version limitation instead of silently changing the global
   configuration strategy.
 - Never ask me to paste an API key into chat, never print an existing key, and
-  never write a plaintext key into TOML. The only accepted secret name is the
-  environment variable DEEPSEEK_API_KEY.
+  never write a plaintext key into TOML. On macOS, the only accepted secret
+  source is the current user's Keychain generic-password item named
+  com.example.codex.deepseek. On Windows and Linux, the only accepted
+  environment variable is DEEPSEEK_API_KEY.
 - Do not make a paid provider call during installation.
 - Use Codex's native `SubagentStart` Hook mechanism for task delivery. Do not
   install a plugin, MCP adapter, wrapper process, daemon, direct HTTP/SDK call,
@@ -51,10 +53,13 @@ Procedure:
    authority already given by this prompt.
 3. Install exactly one agent file as
    <codex-home>/agents/v4-flash-worker.toml:
+   - On macOS, use agents/macos-keychain/v4-flash-worker.toml. This reads the
+     current user's Keychain item named com.example.codex.deepseek at request
+     time and does not require LaunchAgent or `launchctl setenv` injection.
    - On Windows, use agents/windows-live-env/v4-flash-worker.toml. This reads
      the user-scoped environment variable at request time and avoids requiring
      a running Desktop process to inherit a newly set key.
-   - On macOS or Linux, use agents/v4-flash-worker.toml.
+   - On Linux, use agents/v4-flash-worker.toml.
    Fetch the raw repository file or use the local checkout; do not recreate it
    from memory.
 4. Install `skills/use-v4-flash-worker` as
@@ -98,9 +103,13 @@ Procedure:
    deepseek-v4-flash, uses the Responses wire API, declares a 1000000-token
    model context window, defaults to read-only, contains no
    model_reasoning_effort, contains its own [model_providers.deepseek] definition,
-   and contains no plaintext credential. Confirm that the top-level config.toml
-   did not gain any main-model, main-provider, agent-registration, or DeepSeek
-   provider entries. Run the bundled skill-creator validator against the
+   and contains no plaintext credential. On macOS, confirm that authentication
+   uses command-backed `/usr/bin/security find-generic-password` against
+   com.example.codex.deepseek and does not use `env_key`. On Windows, confirm
+   that command-backed auth reads the user-scoped DEEPSEEK_API_KEY. On Linux,
+   confirm that `env_key` is DEEPSEEK_API_KEY. Confirm that the top-level
+   config.toml did not gain any main-model, main-provider, agent-registration,
+   or DeepSeek provider entries. Run the bundled skill-creator validator against the
    installed `use-v4-flash-worker` folder when that validator is available; if
    it is unavailable in this Codex build, parse the YAML files directly instead
    of installing another tool. Confirm that the frontmatter name and triggering
@@ -115,9 +124,12 @@ Procedure:
    Malformed or unknown pending state must remain fail closed. Remove only the
    verified temporary test/state material that this installation created; do
    not remove a pre-existing checkout.
-10. Check only whether DEEPSEEK_API_KEY is present; report a boolean, never its
-   value. On Windows check the user scope used by the installed auth command.
-   On other systems check the environment inherited by the Codex process.
+10. Check only whether the configured secret source is present; report a
+   boolean, never its value. On macOS, check the Keychain item named
+   com.example.codex.deepseek for the current macOS account; this may require a
+   normal Keychain access prompt, and the key must not be printed. On Windows,
+   check the user scope used by the installed auth command. On Linux, check the
+   environment inherited by the Codex process.
 11. Read back the installed configuration with any credential-like text
     redacted, then report changed paths, validation performed, whether the key
     is present, and that the Hook is not runnable until I review its exact

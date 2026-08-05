@@ -21,5 +21,25 @@ sandbox_mode = "read-only"
 name = "DeepSeek"
 base_url = "https://api.deepseek.com"
 wire_api = "responses"
-env_key = "DEEPSEEK_API_KEY"
-env_key_instructions = "On Linux, set DEEPSEEK_API_KEY outside Codex, then start a new Codex process. Never paste the key into a prompt or commit it to a file."
+
+# This macOS variant reads the current user's Keychain item when each request
+# needs a token. Store the key as a generic password with service
+# "com.example.codex.deepseek" and account equal to the macOS username.
+[model_providers.deepseek.auth]
+command = "/bin/sh"
+args = [
+  "-c",
+  '''
+SERVICE="com.example.codex.deepseek"
+ACCOUNT="${USER:-$(/usr/bin/id -un)}"
+KEY="$(/usr/bin/security find-generic-password -s "$SERVICE" -a "$ACCOUNT" -w 2>/dev/null)" || {
+  /usr/bin/printf >&2 "DeepSeek API key not found in macOS Keychain service %s for account %s\n" "$SERVICE" "$ACCOUNT"
+  exit 2
+}
+[ -n "$KEY" ] || {
+  /usr/bin/printf >&2 "DeepSeek API key not found in macOS Keychain service %s for account %s\n" "$SERVICE" "$ACCOUNT"
+  exit 2
+}
+exec /usr/bin/printf "%s" "$KEY"
+''',
+]

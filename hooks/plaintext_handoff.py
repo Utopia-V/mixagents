@@ -24,7 +24,8 @@ def state_root(value: Optional[str]) -> pathlib.Path:
         local_app_data = os.environ.get("LOCALAPPDATA")
         if local_app_data:
             return pathlib.Path(local_app_data) / "Codex" / "plaintext-subagent-handoff"
-    return pathlib.Path(os.environ.get("XDG_STATE_HOME", pathlib.Path.home() / ".local" / "state")) / "codex" / "plaintext-subagent-handoff"
+    state_home = pathlib.Path(os.environ.get("XDG_STATE_HOME", pathlib.Path.home() / ".local" / "state"))
+    return state_home.expanduser().resolve() / "codex" / "plaintext-subagent-handoff"
 
 
 def fail(message: str, code: int) -> None:

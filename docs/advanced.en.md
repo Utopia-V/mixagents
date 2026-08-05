@@ -66,8 +66,9 @@ not establish that a new combination works.
 The Windows Desktop live smoke verified OpenAI parent → DeepSeek child → native
 callback. The PowerShell protocol test passes on Windows. The Python 3 protocol
 test passes on Windows and Linux/WSL, with Linux also covering
-`XDG_STATE_HOME`. macOS uses the same Python/POSIX implementation but is not yet
-part of the physical-host baseline; reproducible Issue or PR evidence is welcome.
+`XDG_STATE_HOME`. macOS uses the same Python/POSIX Hook implementation, and the
+Keychain agent template has structural validation; reproducible provider-smoke
+Issue or PR evidence from real macOS users is still welcome.
 
 Codex `0.145.0` marked configurable subagent models and reasoning effort in
 Multi-agent V2 stable. Custom agents, Hooks, and cross-provider transport still
@@ -77,7 +78,8 @@ evolve, so prefer a current stable release.
 
 | Path | Purpose |
 | --- | --- |
-| [`agents/v4-flash-worker.toml`](../agents/v4-flash-worker.toml) | macOS/Linux agent template |
+| [`agents/v4-flash-worker.toml`](../agents/v4-flash-worker.toml) | Linux environment-variable agent template |
+| [`agents/macos-keychain/v4-flash-worker.toml`](../agents/macos-keychain/v4-flash-worker.toml) | macOS Keychain agent template |
 | [`agents/windows-live-env/v4-flash-worker.toml`](../agents/windows-live-env/v4-flash-worker.toml) | Windows live user-environment template |
 | [`skills/use-v4-flash-worker/SKILL.md`](../skills/use-v4-flash-worker/SKILL.md) | Lazy-loaded selection, delivery, waiting, and failure protocol |
 | [`hooks/plaintext-handoff.ps1`](../hooks/plaintext-handoff.ps1) | Windows stage / Hook script |

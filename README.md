@@ -17,16 +17,20 @@ DeepSeek 是本仓库提供的开箱即用实现，不是这种组合的能力�
 
 ### 1. 设置 DeepSeek API key
 
-在 DeepSeek 创建 key，然后把它保存为环境变量 `DEEPSEEK_API_KEY`。不要把 key
-发进 Codex 聊天、Issue、截图或仓库。
+在 DeepSeek 创建 key，然后按系统保存。不要把 key 发进 Codex 聊天、Issue、截图
+或仓库。
 
 - Windows：在系统设置中搜索“环境变量”，在“用户变量”中新建
   `DEEPSEEK_API_KEY`。已经打开的 Codex Desktop 也能使用这个用户变量。
-- macOS / Linux：在启动 Codex 的 shell 或 secret manager 中设置
-  `DEEPSEEK_API_KEY`，再启动 Codex。
+- macOS：在“钥匙串访问”中新建“密码”项目，名称为
+  `com.example.codex.deepseek`，帐户为当前 macOS 用户名，密码为 DeepSeek API key。
+  安装后的 macOS Agent 会在每次请求 token 时通过系统钥匙串读取它，不需要
+  LaunchAgent 或 `launchctl setenv` 注入。
+- Linux：在启动 Codex 的 shell 或 secret manager 中设置 `DEEPSEEK_API_KEY`，
+  再启动 Codex。
 
-不知道怎么设置时，可以让 Codex 只解释你当前系统的环境变量设置方法，但不要把
-key 本身交给它。安全细节见 [SECURITY.md](SECURITY.md)。
+不知道怎么设置时，可以让 Codex 只解释你当前系统的密钥存储方式，但不要把 key
+本身交给它。安全细节见 [SECURITY.md](SECURITY.md)。
 
 ### 2. 把这一段复制给 Codex
 
@@ -82,7 +86,8 @@ CLI。
 - **看不到 `v4_flash_worker`：** 先新开任务；仍看不到再重启 Codex 一次。
 - **child 说没有收到任务：** 通常是 Hook 未信任、当前任务早于 Hook 安装，或者
   Hook 没有加载。检查 `/hooks` 后再新开任务，不要改用 inherited turns。
-- **提示缺少 `DEEPSEEK_API_KEY`：** 只检查环境变量是否存在，不要把 key 贴进聊天。
+- **提示缺少密钥：** macOS 检查钥匙串项目名称和帐户；Windows/Linux 只检查
+  `DEEPSEEK_API_KEY` 是否存在。不要把 key 贴进聊天。
 - **安装 Agent 要你切换全局 provider、启动另一套 CLI 或安装 MCP：** 停止；那不是
   本仓库的安装路径。
 
@@ -104,7 +109,8 @@ CLI。
 - 凭据、plaintext 本地状态和 DeepSeek 数据边界：[SECURITY.md](SECURITY.md)
 
 Windows Desktop 路径已经 live-pass；Python 3 协议在 Windows 和 Linux/WSL 通过。
-macOS 使用同一 POSIX 实现但尚无实机基线，欢迎实际 macOS 用户提交 Issue 或 PR。
+macOS 使用同一 POSIX Hook 实现，钥匙串 Agent 模板已有结构化验证；真实 macOS
+provider smoke 仍欢迎实际用户提交 Issue 或 PR。
 
 ## 费用与关联声明
 

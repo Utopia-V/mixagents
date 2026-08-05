@@ -20,17 +20,22 @@ or a global switch to DeepSeek. Complete the three steps below.
 
 ### 1. Set the DeepSeek API key
 
-Create a key in DeepSeek and store it as the `DEEPSEEK_API_KEY` environment
-variable. Never paste the key into a Codex chat, Issue, screenshot, or repository.
+Create a key in DeepSeek and store it according to your operating system. Never
+paste the key into a Codex chat, Issue, screenshot, or repository.
 
 - Windows: search System Settings for “environment variables” and add
   `DEEPSEEK_API_KEY` under user variables. An already-running Codex Desktop can
   read this user-scoped value.
-- macOS / Linux: set `DEEPSEEK_API_KEY` in the shell or secret manager that will
-  launch Codex, then start Codex.
+- macOS: create a Keychain Access password item whose name is
+  `com.example.codex.deepseek`, whose account is the current macOS username, and
+  whose password is the DeepSeek API key. The installed macOS agent reads it
+  from Keychain whenever Codex needs a token; no LaunchAgent or
+  `launchctl setenv` injection is required.
+- Linux: set `DEEPSEEK_API_KEY` in the shell or secret manager that will launch
+  Codex, then start Codex.
 
-If you do not know how, ask Codex to explain environment-variable setup for your
-operating system without giving it the key itself. See [SECURITY.md](SECURITY.md).
+If you do not know how, ask Codex to explain secret storage for your operating
+system without giving it the key itself. See [SECURITY.md](SECURITY.md).
 
 ### 2. Paste this into Codex
 
@@ -95,8 +100,9 @@ reviewing and trusting the Hook through `/hooks`. See
 - **The child says no task arrived:** the Hook is usually untrusted, the current
   task predates installation, or the Hook did not load. Check `/hooks`, then
   start a new task. Do not switch to inherited turns.
-- **`DEEPSEEK_API_KEY` is missing:** check only whether the environment variable
-  exists; never paste its value into chat.
+- **The key is missing:** on macOS, check the Keychain item name and account; on
+  Windows/Linux, check only whether `DEEPSEEK_API_KEY` exists. Never paste its
+  value into chat.
 - **The installer asks to switch the global provider, start another CLI, or
   install MCP:** stop. That is not this repository's route.
 
@@ -124,8 +130,9 @@ the provider request, and the callback, and it also helps later users.
   [SECURITY.md](SECURITY.md)
 
 The Windows Desktop route has passed a live smoke. The Python 3 protocol passes
-on Windows and Linux/WSL. macOS uses the same POSIX implementation but is not
-yet in the physical-host baseline; real macOS Issue and PR evidence is welcome.
+on Windows and Linux/WSL. macOS uses the same POSIX Hook implementation, and the
+Keychain agent template has structural validation; real macOS provider-smoke
+Issue and PR evidence is still welcome.
 
 ## Cost and affiliation
 

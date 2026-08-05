@@ -100,7 +100,7 @@ def main() -> None:
         environment["CODEX_DEEPSEEK_HANDOFF_DIR"] = str(override)
         staged = run("stage", None, "Return exactly: OVERRIDE_STATE_ROOT", environment)
         assert staged.returncode == 0, staged.stderr
-        assert pathlib.Path(json.loads(staged.stdout)["pending_path"]).parent == override.resolve()
+        assert pathlib.Path(json.loads(staged.stdout)["pending_path"]).parent.resolve() == override.resolve()
         delivered = run("hook", None, hook_input("v4_flash_worker"), environment)
         assert delivered.returncode == 0, delivered.stderr
         assert "OVERRIDE_STATE_ROOT" in json.loads(delivered.stdout)["hookSpecificOutput"]["additionalContext"]
@@ -115,7 +115,7 @@ def main() -> None:
             staged = run("stage", None, "Return exactly: POSIX_XDG_STATE_ROOT", environment)
             assert staged.returncode == 0, staged.stderr
             expected = (xdg / "codex" / "plaintext-subagent-handoff").resolve()
-            assert pathlib.Path(json.loads(staged.stdout)["pending_path"]).parent == expected
+            assert pathlib.Path(json.loads(staged.stdout)["pending_path"]).parent.resolve() == expected
             delivered = run("hook", None, hook_input("v4_flash_worker"), environment)
             assert delivered.returncode == 0, delivered.stderr
             assert "POSIX_XDG_STATE_ROOT" in json.loads(delivered.stdout)["hookSpecificOutput"]["additionalContext"]
