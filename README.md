@@ -86,9 +86,12 @@ CLI。
 - **安装 Agent 要你切换全局 provider、启动另一套 CLI 或安装 MCP：** 停止；那不是
   本仓库的安装路径。
 
-仍失败时，请开 Issue，提供操作系统、Codex 版本、失败边界和脱敏后的输出；不要
-附 API key、完整请求头或未脱敏配置。可复现的证据有助于区分配置、Agent discovery、
-Hook、provider request 和 callback 等失败边界，也能帮助后来的人。
+仍失败时，优先选择合适的[结构化 Issue Form](https://github.com/Utopia-V/codex-deepseek-subagent/issues/new/choose)；
+现有分类都不适用时，也可以开 Blank Issue。请尽量提供操作系统、Codex 版本、失败
+边界和脱敏后的输出；不要附 API key、完整请求头或未脱敏配置。可以让 Agent 协助
+整理报告，但提交前应由人核对实际观测、推断和未运行的对照。可复现的证据有助于
+区分配置、Agent discovery、Hook、provider request 和 callback 等失败边界，也能
+帮助后来的人。
 
 ## 高级用户与贡献者
 

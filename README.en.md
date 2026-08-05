@@ -100,11 +100,15 @@ reviewing and trusting the Hook through `/hooks`. See
 - **The installer asks to switch the global provider, start another CLI, or
   install MCP:** stop. That is not this repository's route.
 
-If the problem remains, open an Issue with the operating system, Codex version,
-the failing boundary, and redacted output. Never attach an API key, complete
-request headers, or an unredacted configuration dump. Reproducible evidence
-helps distinguish failures in configuration, agent discovery, the Hook, the
-provider request, and the callback, and it also helps later users.
+If the problem remains, prefer the appropriate
+[structured Issue Form](https://github.com/Utopia-V/codex-deepseek-subagent/issues/new/choose).
+If none fits, a Blank Issue is also available. Please provide the operating
+system, Codex version, failing boundary, and redacted output where possible.
+Never attach an API key, complete request headers, or an unredacted configuration
+dump. An agent may help draft the report, but a person must check the observations,
+inferences, and controls that were not run before submission. Reproducible
+evidence helps distinguish failures in configuration, agent discovery, the Hook,
+the provider request, and the callback, and it also helps later users.
 
 ## Advanced users and contributors
 

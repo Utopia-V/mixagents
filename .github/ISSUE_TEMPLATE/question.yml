@@ -1,0 +1,68 @@
+name: "文档或使用问题 / Documentation or question"
+description: "报告说明不清、相互矛盾、缺失的平台信息或其他使用问题。"
+title: "[Question]: "
+labels:
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先阅读当前 README、advanced 文档和已有 Issue。这里适合报告文档缺口或提出一个有具体上下文的问题；能够复现的安装或运行失败请使用 Runtime bug 表单，改进建议请使用 Improvement proposal 表单。
+
+        **不要提交 API key、认证 token、完整请求头或未脱敏配置。**
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: "类型 / Category"
+      options:
+        - "安装说明不清 / Installation documentation"
+        - "行为或兼容性说明 / Behavior or compatibility"
+        - "安全或数据边界说明 / Security or data boundary"
+        - "平台信息缺失 / Missing platform information"
+        - "一般使用问题 / Usage question"
+        - "Other"
+    validations:
+      required: true
+
+  - type: input
+    id: source
+    attributes:
+      label: "相关页面或文件 / Relevant page or file"
+      placeholder: "README.md, docs/advanced.md, or URL"
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: "问题或缺口 / Question or gap"
+      description: "说明哪一句、哪个步骤或哪个未说明的条件造成了歧义。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: "已查阅与已尝试内容 / Context"
+      description: "列出已经阅读的说明、相关 Issue 和实际尝试；未尝试请直说。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: "建议修正 / Suggested correction"
+      description: "可选。如果建议改文档，请说明新表述解决了哪个歧义，而不只是提供替换文案。"
+
+  - type: checkboxes
+    id: question-integrity
+    attributes:
+      label: "提交确认 / Submission checks"
+      options:
+        - label: "我确认问题基于当前 main，而不是旧截图、旧回答或缓存页面。"
+          required: true
+        - label: "我没有提交 API key、token、完整请求头、未脱敏配置或其他秘密。"
+          required: true
+        - label: "如果本 Issue 由 Agent 起草，我已经核对引用和实际上下文，没有把生成内容当作事实。"
+          required: true

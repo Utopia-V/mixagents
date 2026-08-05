@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "安全与凭据 / Security"
+    url: "https://github.com/Utopia-V/codex-deepseek-subagent/blob/main/SECURITY.md"
+    about: "提交任何安全相关内容前先阅读；绝不要在公开 Issue 中发布凭据或秘密。"
+  - name: "快速安装 / Quick start"
+    url: "https://github.com/Utopia-V/codex-deepseek-subagent#三步安装"
+    about: "先按当前三步流程安装并运行 quick smoke，再选择合适的 Issue Form。"

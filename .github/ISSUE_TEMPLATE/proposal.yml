@@ -1,0 +1,58 @@
+name: "改进提案 / Improvement proposal"
+description: "提议改进安装、Hook、Agent、测试、文档结构或维护体验。"
+title: "[Proposal]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先说明真实问题，再讨论实现。一个能被合并的提案需要保留主 Agent/provider 独立、凭据边界、原生 child/callback 语义与可验证性；仅新增 provider/model 组合请改用资格验证表单。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "要解决的问题 / Problem"
+      description: "说明当前哪种用户、在什么情况下遇到什么限制；尽量给出实际例子或现有 Issue。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: "期望结果 / Desired outcome"
+      description: "描述改进后的可观察行为，而不只是指定某段实现。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: approach
+    attributes:
+      label: "建议方案 / Suggested approach"
+      description: "可选。说明方案、替代方案和主要 trade-off；不确定时可以留空。"
+
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: "兼容性与边界 / Compatibility and boundaries"
+      description: "说明可能影响的平台、Codex surface、provider、Hook、数据边界或现有用户。未知项请明确写 unknown。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: contribution
+    attributes:
+      label: "可贡献内容 / Contribution"
+      description: "可选。说明是否愿意提交实现、测试、平台验证或文档。"
+
+  - type: checkboxes
+    id: proposal-integrity
+    attributes:
+      label: "提交确认 / Submission checks"
+      options:
+        - label: "我搜索过现有 Issue，并确认这不是可复现运行故障或单纯的使用问题。"
+          required: true
+        - label: "我没有提交 API key、token、完整请求头、未脱敏配置或其他秘密。"
+          required: true
+        - label: "如果本 Issue 由 Agent 起草，我已经核对问题与边界，并将推断和未知项明确标出。"
+          required: true

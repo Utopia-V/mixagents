@@ -1,0 +1,142 @@
+name: "Provider/model 适配与资格验证"
+description: "提议或记录一个新的 provider/model custom-subagent 组合及其可验证边界。"
+title: "[Provider]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        本仓库的现成实现绑定 DeepSeek 与 `v4_flash_worker`。新的组合不能仅凭 endpoint 可用或一次文本回复就宣称兼容；请区分提议、观察、推断和实际通过的资格项。
+
+        **不要提交 API key、认证 token、完整请求头或未脱敏配置。**
+
+  - type: dropdown
+    id: qualification-status
+    attributes:
+      label: "当前状态 / Qualification status"
+      options:
+        - "仅提议，尚未实测 / Proposal, not tested"
+        - "正在验证 / In qualification"
+        - "部分通过 / Partially passing"
+        - "完整通过所声明范围 / Passing the claimed scope"
+        - "已确认不兼容 / Confirmed incompatible"
+    validations:
+      required: true
+
+  - type: input
+    id: provider
+    attributes:
+      label: "Provider"
+      placeholder: "DeepSeek, OpenRouter, or another provider"
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: "Model"
+      placeholder: "Exact model identifier"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: wire-api
+    attributes:
+      label: "Wire API"
+      options:
+        - "Responses"
+        - "Chat Completions"
+        - "Other or adapter"
+        - "Unknown"
+    validations:
+      required: true
+
+  - type: input
+    id: authentication
+    attributes:
+      label: "认证类型 / Authentication type"
+      description: "只描述 env_key、command-backed auth 或其他机制，不要填写凭据值。"
+      placeholder: "env_key"
+    validations:
+      required: true
+
+  - type: textarea
+    id: purpose
+    attributes:
+      label: "用途与选择理由 / Intended role"
+      description: "说明它适合承担什么 bounded work，以及相对现有实现带来什么真实差异。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: "测试环境 / Environment"
+      placeholder: |
+        Codex surface and version:
+        Operating system:
+        Parent model/provider:
+        Child agent name:
+        Multi-agent version:
+    validations:
+      required: true
+
+  - type: textarea
+    id: adaptation
+    attributes:
+      label: "适配范围 / Adaptation"
+      description: "列出改动过的 Agent、provider config、Hook role/matcher、skill、AGENTS.md 和 smoke oracle；未改项也请说明。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: matrix
+    attributes:
+      label: "资格矩阵 / Qualification matrix"
+      description: "每项填写 pass、fail 或 not run，并附最短证据。"
+      placeholder: |
+        Direct Codex model turn:
+        Custom-agent discovery:
+        Native V2 message-only delivery:
+        One-shot plaintext Hook delivery:
+        Required local tool calls:
+        Native result callback:
+        Cancellation/stop behavior:
+        Parent model/provider unchanged:
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: "复现与证据 / Reproduction and evidence"
+      description: "提供可重复的步骤、随机 marker、脱敏结果和必要的上游链接。不要只贴 Agent 的结论。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: "数据、安全与已知限制 / Boundaries"
+      description: "说明发送给该 provider 的数据、认证边界、未支持能力、费用和仍未验证的语义。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: contribution
+    attributes:
+      label: "可贡献内容 / Contribution"
+      description: "可选。说明是否愿意提交模板、协议测试、平台证据或文档修正。"
+
+  - type: checkboxes
+    id: qualification-integrity
+    attributes:
+      label: "提交确认 / Submission checks"
+      options:
+        - label: "我没有把 endpoint 可达、一次文本回复或模型自述当作完整资格验证。"
+          required: true
+        - label: "我没有提交 API key、token、完整请求头、未脱敏配置或其他秘密。"
+          required: true
+        - label: "如果本 Issue 由 Agent 起草，我已经核对证据，并明确标出了 not run、推断和未知项。"
+          required: true
