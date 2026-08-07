@@ -10,7 +10,14 @@ The portable template uses Codex's `env_key` provider setting. The Windows live-
 
 ## Data boundary
 
-When `v4_flash_worker` runs, the task context and tool results supplied to that child are sent to the DeepSeek API. A read-only sandbox limits filesystem mutation; it does not prevent disclosure through model input. Parent-session permission selections may also override a custom agent's sandbox default in current Codex releases.
+When `v4_flash_worker` runs, the task context and tool results supplied to that
+child are sent through the configured external provider endpoint to the
+`deepseek-v4-flash` model. In the repository templates that endpoint is
+`https://api.deepseek.com`. The main Agent remains on its existing provider;
+the child credential remains in `DEEPSEEK_API_KEY` and must never be staged in
+an assignment. A read-only sandbox limits filesystem mutation; it does not
+prevent disclosure through model input. Parent-session permission selections
+may also override a custom agent's sandbox default in current Codex releases.
 
 Do not delegate private source, secrets, personal data, regulated data, or other sensitive material unless the user has accepted DeepSeek as a processor for that material.
 
@@ -29,18 +36,29 @@ Default state locations are:
 - macOS/Linux with `XDG_STATE_HOME`: `$XDG_STATE_HOME/codex/plaintext-subagent-handoff`
 - other macOS/Linux environments: `~/.local/state/codex/plaintext-subagent-handoff`
 
-The implementation allows one pending Flash assignment, rejects an active
-collision, matches the exact agent type, atomically claims the pending item,
-deletes it after injection, rejects replay, and defaults to a five-minute TTL.
-A later stage operation removes a structurally valid item only after its expiry
-is verifiable. Unknown or malformed state is not overwritten automatically.
-These controls prevent accidental stale or cross-role delivery; they do not
-protect the plaintext from another process acting with the same user account.
+The macOS/Linux implementation allows one pending Flash assignment per state
+root and uses a POSIX, OS-owned nonblocking dispatch lock across stage, claim,
+stdout flush, and consumption. It atomically publishes the envelope, validates
+its schema, UUID, assignment, and timezone-aware timestamps, matches the exact
+agent type, and delivers at most once. The lock serializes only the short
+plaintext dispatch window; workers whose assignments have already been
+delivered can continue concurrently.
+
+A malformed claimed item is quarantined instead of deleted. A later operation
+may remove only a structurally valid expired pending item or an expired orphan
+claim while it owns the dispatch lock. Active claimed and quarantined states
+block another stage until explicitly resolved. Unknown or malformed state is
+never overwritten automatically. These controls prevent accidental stale or
+cross-role delivery; they do not protect plaintext from another process acting
+with the same user account. The Python script requires POSIX locking and
+refuses to run on Windows; the PowerShell script is a separate Windows
+implementation and does not yet claim the POSIX lock/quarantine guarantees.
 
 Do not stage secrets or material that the user has not authorized for the
-DeepSeek boundary. If a spawn fails before the Hook consumes the assignment,
-let the pending item expire before staging another, or inspect and remove only
-the exact pending file after confirming its path and purpose.
+DeepSeek boundary. Never spawn after a failed stage. If a spawn fails before
+the Hook consumes the assignment, let a structurally valid pending item expire,
+or inspect and remove only the exact state file after confirming its path and
+purpose. Then perform a complete new stage and spawn only if it succeeds.
 
 Review the installed Hook command and script before trusting them through
 `/hooks`. Codex records trust against the Hook definition; a material definition
