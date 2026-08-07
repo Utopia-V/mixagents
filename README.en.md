@@ -124,7 +124,7 @@ the provider request, and the callback, and it also helps later users.
   [SECURITY.md](SECURITY.md)
 
 The Windows Desktop PowerShell route has passed a live smoke. On macOS, the
-Python/POSIX route has passed a native callback smoke on Codex `0.146.0` and 25
+Python/POSIX route has passed a native callback smoke on Codex `0.146.0` and 27
 protocol, concurrency, and recovery tests; Linux uses the same POSIX
 implementation. The Python script requires POSIX locking and refuses to run on
 Windows, where the separate PowerShell script applies; the locking guarantee

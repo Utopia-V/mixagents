@@ -52,7 +52,7 @@ Hook matcher、脚本中的 role、skill、`AGENTS.md` 索引与 smoke oracle �
 
 Windows Desktop live smoke 已验证 OpenAI parent → DeepSeek child → native callback，
 PowerShell 协议测试也在 Windows 通过。macOS 的 Python/POSIX 路径已在 Codex
-`0.146.0` 上通过同一原生 callback 流程，并通过 25 项协议、并发与故障恢复测试；
+`0.146.0` 上通过同一原生 callback 流程，并通过 27 项协议、并发与故障恢复测试；
 Linux 使用同一 POSIX 实现。PowerShell 与 Python 是独立实现，因此下文的 POSIX
 锁和 quarantine 保证不自动延伸到 Windows。
 

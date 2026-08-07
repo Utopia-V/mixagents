@@ -66,7 +66,7 @@ not establish that a new combination works.
 The Windows Desktop live smoke verified OpenAI parent → DeepSeek child → native
 callback, and the PowerShell protocol test passes on Windows. On macOS, the
 Python/POSIX route has passed the same native callback flow on Codex `0.146.0`
-and 25 protocol, concurrency, and recovery tests; Linux uses the same POSIX
+and 27 protocol, concurrency, and recovery tests; Linux uses the same POSIX
 implementation. PowerShell and Python are independent implementations, so the
 POSIX lock and quarantine guarantees below do not automatically extend to
 Windows.

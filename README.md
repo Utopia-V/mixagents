@@ -104,7 +104,7 @@ CLI。
 - 凭据、plaintext 本地状态和 DeepSeek 数据边界：[SECURITY.md](SECURITY.md)
 
 Windows Desktop 的 PowerShell 路径已经 live-pass。macOS 的 Python/POSIX 路径已在
-Codex `0.146.0` 上通过原生 callback smoke，并通过 25 项协议、并发与故障恢复测试；
+Codex `0.146.0` 上通过原生 callback smoke，并通过 27 项协议、并发与故障恢复测试；
 Linux 使用同一 POSIX 实现。Python 脚本依赖 POSIX 锁，在 Windows 上会拒绝运行，
 Windows 请使用独立的 PowerShell 脚本；锁保证不自动延伸到该路径。
 
