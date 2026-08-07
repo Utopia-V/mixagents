@@ -123,9 +123,12 @@ the provider request, and the callback, and it also helps later users.
 - Credentials, plaintext local state, and the DeepSeek data boundary:
   [SECURITY.md](SECURITY.md)
 
-The Windows Desktop route has passed a live smoke. The Python 3 protocol passes
-on Windows and Linux/WSL. macOS uses the same POSIX implementation but is not
-yet in the physical-host baseline; real macOS Issue and PR evidence is welcome.
+The Windows Desktop PowerShell route has passed a live smoke. On macOS, the
+Python/POSIX route has passed a native callback smoke on Codex `0.146.0` and 25
+protocol, concurrency, and recovery tests; Linux uses the same POSIX
+implementation. The Python script requires POSIX locking and refuses to run on
+Windows, where the separate PowerShell script applies; the locking guarantee
+does not automatically extend to it.
 
 ## Cost and affiliation
 
