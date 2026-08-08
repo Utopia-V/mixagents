@@ -8,7 +8,7 @@ import os
 import pathlib
 import re
 import sys
-from typing import Optional
+from typing import Optional, Tuple
 import uuid
 
 if os.name == "posix":
@@ -83,7 +83,7 @@ def parse_timestamp(value: object, field_name: str) -> datetime.datetime:
     return timestamp
 
 
-def validate_envelope(value: object) -> tuple[dict, datetime.datetime]:
+def validate_envelope(value: object) -> Tuple[dict, datetime.datetime]:
     if not isinstance(value, dict):
         raise EnvelopeError("the handoff envelope must be a JSON object")
     if type(value.get("schema")) is not int or value["schema"] != 1:
@@ -106,7 +106,8 @@ def validate_envelope(value: object) -> tuple[dict, datetime.datetime]:
 
 
 def quarantine_claim(claimed: pathlib.Path, agent_id: str) -> None:
-    failed = claimed.parent / f"{AGENT_TYPE}.failed.{agent_id}.{uuid.uuid4().hex}.json"
+    safe_agent_id = re.sub(r"[^A-Za-z0-9_-]", "_", agent_id) or "unknown"
+    failed = claimed.parent / f"{AGENT_TYPE}.failed.{safe_agent_id}.{uuid.uuid4().hex}.json"
     try:
         claimed.rename(failed)
     except FileNotFoundError:
@@ -115,7 +116,7 @@ def quarantine_claim(claimed: pathlib.Path, agent_id: str) -> None:
         transport_failure("quarantining an invalid claim", error)
 
 
-def cleanup_expired_claims(root: pathlib.Path, now: datetime.datetime) -> None:
+def reconcile_claims(root: pathlib.Path, now: datetime.datetime) -> None:
     if not root.exists():
         return
     for claimed in root.glob(f"{AGENT_TYPE}.claimed.*.json"):
@@ -124,6 +125,9 @@ def cleanup_expired_claims(root: pathlib.Path, now: datetime.datetime) -> None:
                 value = json.load(stream)
             _, expires_at = validate_envelope(value)
         except (EnvelopeError, FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError):
+            prefix = f"{AGENT_TYPE}.claimed."
+            agent_id = claimed.name[len(prefix) : -len(".json")]
+            quarantine_claim(claimed, agent_id)
             continue
         except OSError as error:
             transport_failure("checking claimed handoffs", error)
@@ -137,11 +141,11 @@ def cleanup_expired_claims(root: pathlib.Path, now: datetime.datetime) -> None:
             transport_failure("cleaning an expired claim", error)
 
 
-def stage_locked(root: pathlib.Path, ttl_seconds: int, assignment: str) -> tuple[dict, pathlib.Path]:
+def stage_locked(root: pathlib.Path, ttl_seconds: int, assignment: str) -> Tuple[dict, pathlib.Path]:
     pending = root / f"{AGENT_TYPE}.pending.json"
     now = datetime.datetime.now(datetime.timezone.utc)
     replace_expired = False
-    cleanup_expired_claims(root, now)
+    reconcile_claims(root, now)
     if any(root.glob(f"{AGENT_TYPE}.claimed.*.json")) or any(root.glob(f"{AGENT_TYPE}.failed.*.json")):
         fail("A v4_flash_worker handoff is already claimed or quarantined. Resolve it before staging another.", 3)
     if pending.exists():
@@ -226,7 +230,7 @@ def stage(root: pathlib.Path, ttl_seconds: int) -> None:
 
 def run_target_hook_locked(root: pathlib.Path, hook_input: dict) -> None:
     now = datetime.datetime.now(datetime.timezone.utc)
-    cleanup_expired_claims(root, now)
+    reconcile_claims(root, now)
     pending = root / f"{AGENT_TYPE}.pending.json"
     if any(root.glob(f"{AGENT_TYPE}.claimed.*.json")) or any(root.glob(f"{AGENT_TYPE}.failed.*.json")):
         fail("A plaintext handoff is already claimed or quarantined for a v4_flash_worker.", 11)

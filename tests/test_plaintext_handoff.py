@@ -194,9 +194,9 @@ class PlaintextHandoffCliTests(unittest.TestCase):
         self.assertEqual(json.loads(claimed.read_text()), active)
         self.assertFalse(self.pending_path.exists())
 
-    def test_stage_blocks_on_expired_claim_with_blank_assignment(self):
-        # A structurally invalid claim must never be TTL-cleaned; it stays
-        # preserved and keeps blocking new stages until explicit resolution.
+    def test_stage_quarantines_expired_claim_with_blank_assignment(self):
+        # A structurally invalid claim must never be TTL-cleaned. Preserve it
+        # under a quarantine name and keep blocking until explicit resolution.
         self.state_directory.mkdir(parents=True)
         claimed = self.state_directory / f"{AGENT_TYPE}.claimed.stale-agent.json"
         invalid = envelope("   \n", expires_in=-10)
@@ -206,7 +206,10 @@ class PlaintextHandoffCliTests(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn("Traceback", result.stderr)
-        self.assertEqual(json.loads(claimed.read_text()), invalid)
+        self.assertFalse(claimed.exists())
+        quarantined = list(self.state_directory.glob(f"{AGENT_TYPE}.failed.*.json"))
+        self.assertEqual(len(quarantined), 1)
+        self.assertEqual(json.loads(quarantined[0].read_text()), invalid)
         self.assertFalse(self.pending_path.exists())
 
     # Robustness contract: unknown state is preserved; known-expired state is cleaned.
@@ -342,8 +345,8 @@ class PlaintextHandoffCliTests(unittest.TestCase):
         self.assertEqual(result.stdout, "")
         self.assertIn("handoff", result.stderr.lower())
 
-    def test_two_concurrent_target_hooks_deliver_exactly_once(self):
-        assignment = "deliver exactly once"
+    def test_two_concurrent_target_hooks_deliver_at_most_once(self):
+        assignment = "deliver at most once"
         self.write_pending(envelope(assignment))
         start_gate = threading.Barrier(3)
 
