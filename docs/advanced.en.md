@@ -61,15 +61,14 @@ not establish that a new combination works.
 | Multi-agent route | V2, `fork_turns="none"`, `SubagentStart` plaintext Hook |
 | DeepSeek model alias | `deepseek-v4-flash` |
 | DeepSeek documented version | `DeepSeek-V4-Flash-0731` |
-| Date | Windows `2026-08-05`; macOS POSIX hardening `2026-08-08` |
+| Date | Windows live baseline `2026-08-05`; Windows/POSIX hardening `2026-08-08` |
 
-The Windows Desktop live smoke verified OpenAI parent → DeepSeek child → native
-callback, and the PowerShell protocol test passes on Windows. On macOS, the
-Python/POSIX route has passed the same native callback flow on Codex `0.146.0`
-and 27 protocol, concurrency, and recovery tests; Linux uses the same POSIX
-implementation. PowerShell and Python are independent implementations, so the
-POSIX lock and quarantine guarantees below do not automatically extend to
-Windows.
+The Windows Desktop route has an OpenAI parent → DeepSeek child → native
+callback baseline; the hardened PowerShell implementation passes the local
+protocol, concurrency, and recovery tests and still needs a post-hardening
+live smoke.
+On macOS, the Python/POSIX route has passed the same callback flow on Codex
+`0.146.0` and 27 protocol tests; Linux uses the same POSIX implementation.
 
 Codex `0.145.0` marked configurable subagent models and reasoning effort in
 Multi-agent V2 stable. Custom agents, Hooks, and cross-provider transport still
@@ -158,15 +157,14 @@ or native callback.
 5. The child returns through the native callback; the parent uses an idle wait,
    not polling.
 
-On macOS/Linux, the implementation uses a POSIX, OS-owned nonblocking dispatch
-lock that serializes only the short plaintext dispatch window (staging, Hook
-claim, delivery output, and consumption); multiple workers that have already
-started can still run concurrently. It is therefore not a serialized worker
-executor—it prevents the single-slot state from crossing assignments at the
-delivery boundary. A malformed claim is quarantined for explicit resolution; TTL
-recovery applies only to a structurally valid pending item or an expired claim
-with no live holder. Never spawn after a failed stage; spawn only after the
-occupied state is explicitly clear and a complete new stage succeeds. Current V2
+Both implementations use an OS-owned nonblocking dispatch lock: POSIX uses
+`flock`, while Windows uses an exclusive file handle. The lock covers staging,
+Hook claim, delivery output, and consumption; workers that have already started
+can still run concurrently. Malformed claims are quarantined and block the
+next stage. TTL recovery applies only to a structurally valid pending item or
+an expired claim with no live holder. Never spawn after a failed stage; spawn
+only after the occupied state is explicitly clear and a complete new stage
+succeeds. Current V2
 `send_message` and `followup_task` calls can cross the same encryption boundary,
 so each Flash child receives one self-contained job. Start a new child when
 essential task information changes.

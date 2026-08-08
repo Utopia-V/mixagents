@@ -103,10 +103,9 @@ CLI。
   [prompts/message-handoff-probe.md](prompts/message-handoff-probe.md)
 - 凭据、plaintext 本地状态和 DeepSeek 数据边界：[SECURITY.md](SECURITY.md)
 
-Windows Desktop 的 PowerShell 路径已经 live-pass。macOS 的 Python/POSIX 路径已在
-Codex `0.146.0` 上通过原生 callback smoke，并通过 27 项协议、并发与故障恢复测试；
-Linux 使用同一 POSIX 实现。Python 脚本依赖 POSIX 锁，在 Windows 上会拒绝运行，
-Windows 请使用独立的 PowerShell 脚本；锁保证不自动延伸到该路径。
+Windows Desktop 路径已有 live smoke；当前 PowerShell 加固实现通过本地协议、并发
+与恢复测试，尚待一次更新后的 live smoke。macOS 的 Python/POSIX 路径已在 Codex
+`0.146.0` 上通过原生 callback smoke 和 27 项协议测试；Linux 使用同一 POSIX 实现。
 
 ## 费用与关联声明
 

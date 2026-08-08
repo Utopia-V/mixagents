@@ -36,23 +36,20 @@ Default state locations are:
 - macOS/Linux with `XDG_STATE_HOME`: `$XDG_STATE_HOME/codex/plaintext-subagent-handoff`
 - other macOS/Linux environments: `~/.local/state/codex/plaintext-subagent-handoff`
 
-The macOS/Linux implementation allows one pending Flash assignment per state
-root and uses a POSIX, OS-owned nonblocking dispatch lock across stage, claim,
-stdout flush, and consumption. It atomically publishes the envelope, validates
-its schema, UUID, assignment, and timezone-aware timestamps, matches the exact
-agent type, and delivers at most once. The lock serializes only the short
-plaintext dispatch window; workers whose assignments have already been
-delivered can continue concurrently.
+Each platform implementation allows one pending Flash assignment per state
+root and holds an OS-owned nonblocking dispatch lock across stage, claim,
+stdout flush, and consumption. POSIX uses `flock`; Windows uses an exclusive
+file handle. Both atomically publish the envelope, validate its schema, UUID,
+assignment, and timezone-aware timestamps, match the exact agent type, and
+deliver at most once. The lock covers only the short dispatch window; workers
+whose assignments have already been delivered can continue concurrently.
 
-A malformed claimed item is quarantined instead of deleted. A later operation
-may remove only a structurally valid expired pending item or an expired orphan
-claim while it owns the dispatch lock. Active claimed and quarantined states
-block another stage until explicitly resolved. Unknown or malformed state is
-never overwritten automatically. These controls prevent accidental stale or
-cross-role delivery; they do not protect plaintext from another process acting
-with the same user account. The Python script requires POSIX locking and
-refuses to run on Windows; the PowerShell script is a separate Windows
-implementation and does not yet claim the POSIX lock/quarantine guarantees.
+Malformed claim state is preserved under a quarantine filename and blocks
+staging until explicitly resolved. A later operation may remove only a
+structurally valid expired pending item or expired orphan claim while holding
+the dispatch lock. Unknown state is never overwritten automatically. These
+controls prevent accidental stale or cross-role delivery; they do not protect
+plaintext from another process acting with the same user account.
 
 Do not stage secrets or material that the user has not authorized for the
 DeepSeek boundary. Never spawn after a failed stage. If a spawn fails before
