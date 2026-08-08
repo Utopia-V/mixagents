@@ -48,13 +48,12 @@ Hook matcher、脚本中的 role、skill、`AGENTS.md` 索引与 smoke oracle �
 | Multi-agent 路径 | V2、`fork_turns="none"`、`SubagentStart` plaintext Hook |
 | DeepSeek 模型别名 | `deepseek-v4-flash` |
 | DeepSeek 文档标注版本 | `DeepSeek-V4-Flash-0731` |
-| 日期 | Windows `2026-08-05`；macOS POSIX 加固 `2026-08-08` |
+| 日期 | Windows live 基线 `2026-08-05`；Windows/POSIX 加固 `2026-08-08` |
 
-Windows Desktop live smoke 已验证 OpenAI parent → DeepSeek child → native callback，
-PowerShell 协议测试也在 Windows 通过。macOS 的 Python/POSIX 路径已在 Codex
-`0.146.0` 上通过同一原生 callback 流程，并通过 27 项协议、并发与故障恢复测试；
-Linux 使用同一 POSIX 实现。PowerShell 与 Python 是独立实现，因此下文的 POSIX
-锁和 quarantine 保证不自动延伸到 Windows。
+Windows Desktop 路径已有 OpenAI parent → DeepSeek child → native callback 基线；
+当前 PowerShell 加固实现通过本地协议、并发与恢复测试，尚待更新后的 live smoke。
+macOS 的 Python/POSIX 路径已在 Codex `0.146.0` 上通过同一 callback 流程和 27 项
+协议测试；Linux 使用同一 POSIX 实现。
 
 Codex `0.145.0` 将可配置 subagent 模型与 reasoning effort 的 Multi-agent V2
 标记为稳定。custom agent、Hook 和跨 provider transport 仍在演进，优先使用当前
@@ -131,12 +130,11 @@ Agent discovery 或 native callback 本身失败。
    `hookSpecificOutput.additionalContext` 注入 developer context；
 5. child 通过 Codex 原生 callback 返回，父 Agent 使用 idle wait，不轮询。
 
-macOS/Linux 实现使用 POSIX、OS-owned 的非阻塞 dispatch lock，只串行化很短的
-plaintext dispatch window（stage、claim、交付输出与消费）；已启动的多个 worker
-仍可并发运行，因此这不是多 worker 串行执行器，而是防止单槽状态在交付边界串任务。
-损坏 claim 会被 quarantine，必须显式处理；TTL 只恢复结构有效的 pending 或无存活
-holder 的过期 claim。stage 失败后绝不能 spawn，只有状态明确清除并重新 stage 成功
-后才可创建 child。当前 V2 `send_message` / `followup_task` 可能遇到
+两种实现都用 OS-owned 的非阻塞 dispatch lock；POSIX 使用 `flock`，Windows 使用
+exclusive file handle。锁只覆盖 stage、claim、交付输出与消费，已启动的 worker
+仍可并发运行。损坏 claim 会被 quarantine 并阻塞后续 stage；TTL 只恢复结构有效的
+pending 或无存活 holder 的过期 claim。stage 失败后绝不能 spawn，只有状态明确清除
+并重新 stage 成功后才可创建 child。当前 V2 `send_message` / `followup_task` 可能遇到
 同一加密边界，因此每个 Flash child 承担一个自洽 job；关键任务发生变化时创建新
 child，而不是依赖 follow-up。
 

@@ -112,14 +112,12 @@ Procedure:
    It must prove collision rejection, exact-role delivery, exact random-marker
    preservation, one-shot consumption, replay rejection, and recovery from a
    structurally valid expired handoff without calling a model or provider.
-   On macOS/Linux, run the Python unittest suite and also require atomic
-   publication, strict envelope validation, controlled missing-handoff failure,
-   quarantine preservation, concurrent-stage exclusion, exactly-once delivery
-   under concurrent Hooks, and exclusion of stage while Hook delivery is live.
-   Malformed or unknown state must remain fail closed. The POSIX lock guarantees
-   must not be reported as Windows validation. Remove only the verified
-   temporary test/state material that this installation created; do not remove
-   a pre-existing checkout.
+   The platform suite must also require atomic publication, strict envelope
+   validation, controlled missing-handoff failure, malformed-state preservation,
+   concurrent-stage exclusion, at-most-once delivery, and exclusion of stage
+   while Hook output is live. Report only the platform implementation actually
+   tested. Remove only verified temporary state created by this installation;
+   do not remove a pre-existing checkout.
 10. Check only whether DEEPSEEK_API_KEY is present; report a boolean, never its
    value. On Windows check the user scope used by the installed auth command.
    On other systems check the environment inherited by the Codex process.
