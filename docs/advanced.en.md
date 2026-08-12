@@ -79,6 +79,7 @@ evolve, so prefer a current stable release.
 | Path | Purpose |
 | --- | --- |
 | [`agents/v4-flash-worker.toml`](../agents/v4-flash-worker.toml) | macOS/Linux agent template |
+| [`agents/macos-keychain/v4-flash-worker.toml`](../agents/macos-keychain/v4-flash-worker.toml) | Optional macOS Keychain authentication template |
 | [`agents/windows-live-env/v4-flash-worker.toml`](../agents/windows-live-env/v4-flash-worker.toml) | Windows live user-environment template |
 | [`skills/use-v4-flash-worker/SKILL.md`](../skills/use-v4-flash-worker/SKILL.md) | Lazy-loaded selection, delivery, waiting, and failure protocol |
 | [`hooks/plaintext-handoff.ps1`](../hooks/plaintext-handoff.ps1) | Windows stage / Hook script |
@@ -102,6 +103,41 @@ task. `model_context_window = 1000000` describes provider capacity; it neither
 forces 1M-token requests nor guarantees unchanged performance near a full
 window. `sandbox_mode = "read-only"` is a mutation default, not a disclosure
 boundary.
+
+## Optional macOS Keychain authentication
+
+The portable template authenticates with `env_key = "DEEPSEEK_API_KEY"` and is
+also the macOS default. If the Codex Desktop launch path does not inherit the
+shell environment, explicitly ask the installer to use the separate Keychain
+template. The two templates are mutually exclusive, and the installer never
+silently migrates a working installation between authentication mechanisms.
+
+Create a generic password item in Keychain Access with:
+
+- service/name: `io.github.utopia-v.codex-deepseek-subagent.deepseek-api-key`
+- account: the current macOS short user name printed by `/usr/bin/id -un`
+- password: the DeepSeek API key
+
+Then include “use the repository's macOS Keychain authentication template” in
+the installation request. The template retrieves the password with
+`/usr/bin/security` and writes it only to Codex's authentication channel through
+the shell's built-in `printf`; the key is not placed in an external `printf`
+process's argv. This existence probe does not read the password value and
+reports only `present` or `missing`:
+
+```sh
+SERVICE='io.github.utopia-v.codex-deepseek-subagent.deepseek-api-key'
+ACCOUNT=$(/usr/bin/id -un)
+if /usr/bin/security find-generic-password -s "$SERVICE" -a "$ACCOUNT" >/dev/null 2>&1; then
+  printf '%s\n' present
+else
+  printf '%s\n' missing
+fi
+```
+
+The repository currently has structural validation for this template's TOML,
+authentication command, and secret-safe probe. macOS Keychain authorization
+prompts and a live provider call are not yet claimed as evidence.
 
 ## Autonomous routing and context cost
 

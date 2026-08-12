@@ -25,6 +25,10 @@ DeepSeek 是本仓库提供的开箱即用实现，不是这种组合的能力�
 - macOS / Linux：在启动 Codex 的 shell 或 secret manager 中设置
   `DEEPSEEK_API_KEY`，再启动 Codex。
 
+macOS 也提供独立的 Keychain 认证模板，适合不从 shell 继承环境变量的启动方式。
+默认安装仍使用上面的环境变量；只有你明确选择时才使用 Keychain，已有配置不会自动
+迁移。设置与安全探针见 [macOS Keychain 可选认证](docs/advanced.md#macos-keychain-可选认证)。
+
 不知道怎么设置时，可以让 Codex 只解释你当前系统的环境变量设置方法，但不要把
 key 本身交给它。安全细节见 [SECURITY.md](SECURITY.md)。
 
@@ -82,7 +86,8 @@ CLI。
 - **看不到 `v4_flash_worker`：** 先新开任务；仍看不到再重启 Codex 一次。
 - **child 说没有收到任务：** 通常是 Hook 未信任、当前任务早于 Hook 安装，或者
   Hook 没有加载。检查 `/hooks` 后再新开任务，不要改用 inherited turns。
-- **提示缺少 `DEEPSEEK_API_KEY`：** 只检查环境变量是否存在，不要把 key 贴进聊天。
+- **提示缺少认证：** 只检查所选环境变量或 Keychain item 是否存在，不要把 key
+  贴进聊天。
 - **安装 Agent 要你切换全局 provider、启动另一套 CLI 或安装 MCP：** 停止；那不是
   本仓库的安装路径。
 

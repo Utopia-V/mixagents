@@ -29,6 +29,12 @@ variable. Never paste the key into a Codex chat, Issue, screenshot, or repositor
 - macOS / Linux: set `DEEPSEEK_API_KEY` in the shell or secret manager that will
   launch Codex, then start Codex.
 
+macOS also has a separate Keychain authentication template for launch paths that
+do not inherit a shell environment. The default remains the environment-variable
+template; Keychain is selected only when explicitly requested, and existing
+installations are not migrated automatically. See
+[Optional macOS Keychain authentication](docs/advanced.en.md#optional-macos-keychain-authentication).
+
 If you do not know how, ask Codex to explain environment-variable setup for your
 operating system without giving it the key itself. See [SECURITY.md](SECURITY.md).
 
@@ -95,8 +101,8 @@ reviewing and trusting the Hook through `/hooks`. See
 - **The child says no task arrived:** the Hook is usually untrusted, the current
   task predates installation, or the Hook did not load. Check `/hooks`, then
   start a new task. Do not switch to inherited turns.
-- **`DEEPSEEK_API_KEY` is missing:** check only whether the environment variable
-  exists; never paste its value into chat.
+- **Authentication is missing:** check only whether the selected environment
+  variable or Keychain item exists; never paste the key into chat.
 - **The installer asks to switch the global provider, start another CLI, or
   install MCP:** stop. That is not this repository's route.
 

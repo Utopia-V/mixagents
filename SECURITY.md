@@ -2,11 +2,11 @@
 
 ## API keys
 
-Never commit a DeepSeek API key, paste it into a prompt, include it in a screenshot, or store it as `experimental_bearer_token`. The repository templates reference only `DEEPSEEK_API_KEY`.
+Never commit a DeepSeek API key, paste it into a prompt, include it in a screenshot, or store it as `experimental_bearer_token`. Repository templates name local secret sources but never embed a credential.
 
 If a key has been exposed, revoke or rotate it in the DeepSeek console before doing anything else. Do not open a public issue containing the key, request headers, or an unredacted configuration dump.
 
-The portable template uses Codex's `env_key` provider setting. The Windows live-environment variant uses Codex's command-backed authentication to read `DEEPSEEK_API_KEY` from the current user's environment at request time. The command prints the token only to Codex's authentication channel; validation instructions must never print it to the task transcript.
+The portable template uses Codex's `env_key` provider setting. The Windows live-environment and optional macOS Keychain variants use Codex's command-backed authentication. The macOS variant reads one generic-password item whose service is `io.github.utopia-v.codex-deepseek-subagent.deepseek-api-key` and whose account is the current macOS short user name. These are alternative templates; do not combine `env_key` with `[model_providers.deepseek.auth]` or silently migrate an existing installation. An authentication command prints the token only to Codex's authentication channel; validation must use a Boolean existence probe and must never print the token to the task transcript.
 
 ## Data boundary
 
@@ -14,8 +14,8 @@ When `v4_flash_worker` runs, the task context and tool results supplied to that
 child are sent through the configured external provider endpoint to the
 `deepseek-v4-flash` model. In the repository templates that endpoint is
 `https://api.deepseek.com`. The main Agent remains on its existing provider;
-the child credential remains in `DEEPSEEK_API_KEY` and must never be staged in
-an assignment. A read-only sandbox limits filesystem mutation; it does not
+the child credential comes from the selected local environment or Keychain
+source and must never be staged in an assignment. A read-only sandbox limits filesystem mutation; it does not
 prevent disclosure through model input. Parent-session permission selections
 may also override a custom agent's sandbox default in current Codex releases.
 

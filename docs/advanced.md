@@ -64,6 +64,7 @@ Codex `0.145.0` 将可配置 subagent 模型与 reasoning effort 的 Multi-agent
 | 路径 | 用途 |
 | --- | --- |
 | [`agents/v4-flash-worker.toml`](../agents/v4-flash-worker.toml) | macOS/Linux Agent 模板 |
+| [`agents/macos-keychain/v4-flash-worker.toml`](../agents/macos-keychain/v4-flash-worker.toml) | macOS Keychain 可选认证模板 |
 | [`agents/windows-live-env/v4-flash-worker.toml`](../agents/windows-live-env/v4-flash-worker.toml) | Windows 实时读取用户环境变量的模板 |
 | [`skills/use-v4-flash-worker/SKILL.md`](../skills/use-v4-flash-worker/SKILL.md) | 按需加载的选择、交付、等待与失败协议 |
 | [`hooks/plaintext-handoff.ps1`](../hooks/plaintext-handoff.ps1) | Windows stage / Hook 脚本 |
@@ -85,6 +86,36 @@ Agent 文件。顶层配置不增加 `[agents.v4_flash_worker]` 或
 `model_context_window = 1000000` 只描述 provider 容量，不要求每次发送 1M tokens，
 也不保证接近满窗口时性能不变。`sandbox_mode = "read-only"` 是 mutation 默认值，
 不是防泄漏边界。
+
+## macOS Keychain 可选认证
+
+便携模板通过 `env_key = "DEEPSEEK_API_KEY"` 认证，也是 macOS 的默认选择。若 Codex
+Desktop 的启动路径不继承 shell 环境，可以明确要求安装器改用独立 Keychain 模板。
+两种模板互斥；安装器不会把已有的可用配置静默迁移到另一种认证方式。
+
+使用 Keychain Access 创建一个 generic password item：
+
+- service/name：`io.github.utopia-v.codex-deepseek-subagent.deepseek-api-key`
+- account：`/usr/bin/id -un` 输出的当前 macOS 短用户名
+- password：DeepSeek API key
+
+然后在安装请求中明确写明“在 macOS 上使用仓库的 Keychain 认证模板”。模板通过
+`/usr/bin/security` 获取密码，并由 shell 内建 `printf` 只写入 Codex 的认证通道；
+不会把 key 放进外部 `printf` 进程的 argv。下面的存在性探针不读取密码内容，只返回
+`present` 或 `missing`：
+
+```sh
+SERVICE='io.github.utopia-v.codex-deepseek-subagent.deepseek-api-key'
+ACCOUNT=$(/usr/bin/id -un)
+if /usr/bin/security find-generic-password -s "$SERVICE" -a "$ACCOUNT" >/dev/null 2>&1; then
+  printf '%s\n' present
+else
+  printf '%s\n' missing
+fi
+```
+
+仓库目前只对这个模板做了 TOML、命令结构和 secret-safe probe 的静态验证；尚未把
+macOS Keychain 授权提示或真实 provider 调用列为已验证证据。
 
 ## 自主路由与上下文成本
 

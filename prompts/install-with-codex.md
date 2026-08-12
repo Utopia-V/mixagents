@@ -25,8 +25,10 @@ Scope and invariants:
   and report the version limitation instead of silently changing the global
   configuration strategy.
 - Never ask me to paste an API key into chat, never print an existing key, and
-  never write a plaintext key into TOML. The only accepted secret name is the
-  environment variable DEEPSEEK_API_KEY.
+  never write a plaintext key into TOML. The portable secret source is the
+  environment variable DEEPSEEK_API_KEY. On macOS, the repository's Keychain
+  template is also allowed only when I explicitly request it or the existing
+  repository-managed agent already uses it.
 - Do not make a paid provider call during installation.
 - Use Codex's native `SubagentStart` Hook mechanism for task delivery. Do not
   install a plugin, MCP adapter, wrapper process, daemon, direct HTTP/SDK call,
@@ -54,7 +56,15 @@ Procedure:
    - On Windows, use agents/windows-live-env/v4-flash-worker.toml. This reads
      the user-scoped environment variable at request time and avoids requiring
      a running Desktop process to inherit a newly set key.
-   - On macOS or Linux, use agents/v4-flash-worker.toml.
+   - On Linux, use agents/v4-flash-worker.toml.
+   - On macOS, use agents/v4-flash-worker.toml by default. Use
+     agents/macos-keychain/v4-flash-worker.toml only when I explicitly request
+     the repository's Keychain variant or the existing repository-managed agent
+     already uses that exact variant.
+   `env_key` and command-backed authentication are alternative provider
+   configurations. Never combine them or silently migrate a working existing
+   installation from one to the other. If an existing target uses an unknown
+   authentication command, stop and report the conflict.
    Fetch the raw repository file or use the local checkout; do not recreate it
    from memory.
 4. Install `skills/use-v4-flash-worker` as
@@ -118,9 +128,27 @@ Procedure:
    while Hook output is live. Report only the platform implementation actually
    tested. Remove only verified temporary state created by this installation;
    do not remove a pre-existing checkout.
-10. Check only whether DEEPSEEK_API_KEY is present; report a boolean, never its
-   value. On Windows check the user scope used by the installed auth command.
-   On other systems check the environment inherited by the Codex process.
+10. Check only whether the selected secret source is present; report a boolean,
+    never its value.
+    - For `env_key`, check whether DEEPSEEK_API_KEY is present in the environment
+      the installed provider will use.
+    - For the macOS Keychain template, use this exact secret-safe probe. It must
+      omit `-w`, discard all `security` output, and report only `present` or
+      `missing`:
+
+      ```sh
+      SERVICE='io.github.utopia-v.codex-deepseek-subagent.deepseek-api-key'
+      ACCOUNT=$(/usr/bin/id -un)
+      if /usr/bin/security find-generic-password -s "$SERVICE" -a "$ACCOUNT" >/dev/null 2>&1; then
+        printf '%s\n' present
+      else
+        printf '%s\n' missing
+      fi
+      ```
+
+      If the item is missing, explain the expected service and account fields
+      without asking for the key. Do not create or modify a Keychain item unless
+      I separately authorize that credential mutation.
 11. Read back the installed configuration with any credential-like text
     redacted, then report changed paths, validation performed, whether the key
     is present, and that the Hook is not runnable until I review its exact
