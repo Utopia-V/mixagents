@@ -61,12 +61,16 @@ not establish that a new combination works.
 | Multi-agent route | V2, `fork_turns="none"`, `SubagentStart` plaintext Hook |
 | DeepSeek model alias | `deepseek-v4-flash` |
 | DeepSeek documented version | `DeepSeek-V4-Flash-0731` |
-| Date | Windows live baseline `2026-08-05`; Windows/POSIX hardening `2026-08-08` |
+| Date | Windows live baseline `2026-08-05`; Windows/POSIX hardening `2026-08-08`; Windows `env_key` control `2026-08-12` |
 
 The Windows Desktop route has an OpenAI parent → DeepSeek child → native
 callback baseline; the hardened PowerShell implementation passes the local
 protocol, concurrency, and recovery tests and still needs a post-hardening
 live smoke.
+[Issue #6](https://github.com/Utopia-V/codex-deepseek-subagent/issues/6) adds a
+controlled comparison: the Windows Desktop child/callback succeeded after
+inheriting `env_key`, while the same Agent's User/HKCU command auth was
+unavailable under a sandbox identity.
 On macOS, the Python/POSIX route has passed the same callback flow on Codex
 `0.146.0` and 27 protocol tests; Linux uses the same POSIX implementation.
 
@@ -78,9 +82,9 @@ evolve, so prefer a current stable release.
 
 | Path | Purpose |
 | --- | --- |
-| [`agents/v4-flash-worker.toml`](../agents/v4-flash-worker.toml) | macOS/Linux agent template |
+| [`agents/v4-flash-worker.toml`](../agents/v4-flash-worker.toml) | Default Windows/macOS/Linux `env_key` agent template |
 | [`agents/macos-keychain/v4-flash-worker.toml`](../agents/macos-keychain/v4-flash-worker.toml) | Optional macOS Keychain authentication template |
-| [`agents/windows-live-env/v4-flash-worker.toml`](../agents/windows-live-env/v4-flash-worker.toml) | Windows live user-environment template |
+| [`agents/windows-live-env/v4-flash-worker.toml`](../agents/windows-live-env/v4-flash-worker.toml) | Optional Windows User/HKCU command-auth compatibility template |
 | [`skills/use-v4-flash-worker/SKILL.md`](../skills/use-v4-flash-worker/SKILL.md) | Lazy-loaded selection, delivery, waiting, and failure protocol |
 | [`hooks/plaintext-handoff.ps1`](../hooks/plaintext-handoff.ps1) | Windows stage / Hook script |
 | [`hooks/plaintext_handoff.py`](../hooks/plaintext_handoff.py) | macOS/Linux Python 3 script |
@@ -138,6 +142,34 @@ fi
 The repository currently has structural validation for this template's TOML,
 authentication command, and secret-safe probe. macOS Keychain authorization
 prompts and a live provider call are not yet claimed as evidence.
+
+## Windows authentication boundary
+
+Windows now defaults to the portable `env_key` template too. After setting the
+user variable, fully quit and restart Codex Desktop so the new process actually
+inherits `DEEPSEEK_API_KEY`.
+
+The optional `windows-live-env` template reads User/HKCU through command-backed
+authentication, but that User scope belongs to the command's actual process
+identity. [Issue #6](https://github.com/Utopia-V/codex-deepseek-subagent/issues/6)
+observed Codex Desktop using `CodexSandboxOffline`, which could not see the
+logged-in user's HKCU. The failure occurred before
+`SubagentStart` and was unrelated to the plaintext Hook. This diagnostic emits
+only the identity and Boolean presence values, never the key:
+
+```powershell
+[pscustomobject]@{
+  Identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+  ProcessEnvPresent = -not [string]::IsNullOrWhiteSpace($env:DEEPSEEK_API_KEY)
+  UserScopePresent = -not [string]::IsNullOrWhiteSpace(
+    [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'User')
+  )
+}
+```
+
+The default `env_key` route depends on `ProcessEnvPresent`.
+`UserScopePresent` only explains the optional command-auth behavior and does not
+prove that the Codex provider can read the value.
 
 ## Autonomous routing and context cost
 

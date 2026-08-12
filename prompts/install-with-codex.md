@@ -53,10 +53,15 @@ Procedure:
    authority already given by this prompt.
 3. Install exactly one agent file as
    <codex-home>/agents/v4-flash-worker.toml:
-   - On Windows, use agents/windows-live-env/v4-flash-worker.toml. This reads
-     the user-scoped environment variable at request time and avoids requiring
-     a running Desktop process to inherit a newly set key.
-   - On Linux, use agents/v4-flash-worker.toml.
+   - On Windows or Linux, use agents/v4-flash-worker.toml. On Windows, a fully
+     restarted Codex process must inherit DEEPSEEK_API_KEY; do not infer that a
+     command-backed User/HKCU lookup sees the logged-in user's environment.
+     If an existing repository-managed target exactly matches the former
+     agents/windows-live-env/v4-flash-worker.toml variant, replace it with the
+     portable template and report that migration and restart requirement. The
+     former command-auth template remains an explicit compatibility option only;
+     do not select it unless I separately request it after accepting its sandbox
+     identity boundary.
    - On macOS, use agents/v4-flash-worker.toml by default. Use
      agents/macos-keychain/v4-flash-worker.toml only when I explicitly request
      the repository's Keychain variant or the existing repository-managed agent
@@ -130,8 +135,10 @@ Procedure:
    do not remove a pre-existing checkout.
 10. Check only whether the selected secret source is present; report a boolean,
     never its value.
-    - For `env_key`, check whether DEEPSEEK_API_KEY is present in the environment
-      the installed provider will use.
+    - For `env_key`, check whether DEEPSEEK_API_KEY is present in the current
+      Codex process environment. On Windows, a user-scoped variable outside the
+      process is not proof that the provider can read it; if absent, tell me to
+      set it and fully restart Codex.
     - For the macOS Keychain template, use this exact secret-safe probe. It must
       omit `-w`, discard all `security` output, and report only `present` or
       `missing`:
@@ -154,10 +161,11 @@ Procedure:
     is present, and that the Hook is not runnable until I review its exact
     definition in `/hooks`. Do not bypass Hook trust. After I trust it, start a
     new Codex task before the paid smoke so that both the final Hook definition
-    and custom-agent configuration are loaded together. A full application
-    restart is normally unnecessary; an already-running root task must not be
-    treated as proof that a changed Hook was reloaded. Do not run the paid smoke
-    test until I ask. Point me to
+    and custom-agent configuration are loaded together. On Windows, fully
+    restart Codex first if DEEPSEEK_API_KEY was set or changed outside the
+    current process; otherwise a full application restart is normally
+    unnecessary. An already-running root task must not be treated as proof that
+    a changed Hook was reloaded. Do not run the paid smoke test until I ask. Point me to
     `prompts/quick-smoke-test.md` as the default checkout-free test; reserve
     `prompts/smoke-test.md` for contributors testing local tool access.
 ```

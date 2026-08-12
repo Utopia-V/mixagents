@@ -21,7 +21,8 @@ DeepSeek 是本仓库提供的开箱即用实现，不是这种组合的能力�
 发进 Codex 聊天、Issue、截图或仓库。
 
 - Windows：在系统设置中搜索“环境变量”，在“用户变量”中新建
-  `DEEPSEEK_API_KEY`。已经打开的 Codex Desktop 也能使用这个用户变量。
+  `DEEPSEEK_API_KEY`，然后完全退出并重新启动 Codex Desktop。不要依赖已经运行的
+  Desktop 自动读取后来设置的变量。
 - macOS / Linux：在启动 Codex 的 shell 或 secret manager 中设置
   `DEEPSEEK_API_KEY`，再启动 Codex。
 
@@ -51,8 +52,8 @@ Codex 会自行下载、合并和验证需要的 Agent、skill、Hook 与两条 
 
 1. 在 Codex 输入 `/hooks`，检查它只匹配 `v4_flash_worker`，命令指向刚安装的
    `plaintext-handoff` 脚本，然后选择信任。
-2. **新开一个 Codex 任务。** 已经运行的旧任务不保证重新加载新 Hook；通常不必
-   重启整个应用。
+2. **新开一个 Codex 任务。** 已经运行的旧任务不保证重新加载新 Hook。Windows
+   用户若刚设置或修改了 API key，应先完整重启 Codex；其他情况下通常不必重启应用。
 3. 把下面一句复制到新任务：
 
 ```text
@@ -88,6 +89,8 @@ CLI。
   Hook 没有加载。检查 `/hooks` 后再新开任务，不要改用 inherited turns。
 - **提示缺少认证：** 只检查所选环境变量或 Keychain item 是否存在，不要把 key
   贴进聊天。
+- **Windows 在 Hook 运行前就提示 Agent 不可用：** 确认 Codex 进程继承了环境变量并
+  完整重启；User/HKCU command auth 可能读到 sandbox identity，见[高级说明](docs/advanced.md#windows-认证边界)。
 - **安装 Agent 要你切换全局 provider、启动另一套 CLI 或安装 MCP：** 停止；那不是
   本仓库的安装路径。
 

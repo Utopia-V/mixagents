@@ -24,8 +24,9 @@ Create a key in DeepSeek and store it as the `DEEPSEEK_API_KEY` environment
 variable. Never paste the key into a Codex chat, Issue, screenshot, or repository.
 
 - Windows: search System Settings for “environment variables” and add
-  `DEEPSEEK_API_KEY` under user variables. An already-running Codex Desktop can
-  read this user-scoped value.
+  `DEEPSEEK_API_KEY` under user variables, then fully quit and restart Codex
+  Desktop. Do not rely on an already-running Desktop process to read a variable
+  that was set later.
 - macOS / Linux: set `DEEPSEEK_API_KEY` in the shell or secret manager that will
   launch Codex, then start Codex.
 
@@ -60,7 +61,9 @@ After installation:
    `v4_flash_worker` and points to the installed `plaintext-handoff` script,
    then trust it.
 2. **Start a new Codex task.** A task that was already running is not guaranteed
-   to reload the new Hook. A full application restart is normally unnecessary.
+   to reload the new Hook. On Windows, fully restart Codex first if the API key
+   was just set or changed; otherwise a full application restart is normally
+   unnecessary.
 3. Paste this into the new task:
 
 ```text
@@ -103,6 +106,10 @@ reviewing and trusting the Hook through `/hooks`. See
   start a new task. Do not switch to inherited turns.
 - **Authentication is missing:** check only whether the selected environment
   variable or Keychain item exists; never paste the key into chat.
+- **Windows reports the Agent unavailable before the Hook runs:** make sure the
+  Codex process inherited the environment variable and fully restart it.
+  User/HKCU command auth may resolve against a sandbox identity; see
+  [Advanced notes](docs/advanced.en.md#windows-authentication-boundary).
 - **The installer asks to switch the global provider, start another CLI, or
   install MCP:** stop. That is not this repository's route.
 

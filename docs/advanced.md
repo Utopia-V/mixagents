@@ -48,10 +48,13 @@ Hook matcher、脚本中的 role、skill、`AGENTS.md` 索引与 smoke oracle �
 | Multi-agent 路径 | V2、`fork_turns="none"`、`SubagentStart` plaintext Hook |
 | DeepSeek 模型别名 | `deepseek-v4-flash` |
 | DeepSeek 文档标注版本 | `DeepSeek-V4-Flash-0731` |
-| 日期 | Windows live 基线 `2026-08-05`；Windows/POSIX 加固 `2026-08-08` |
+| 日期 | Windows live 基线 `2026-08-05`；Windows/POSIX 加固 `2026-08-08`；Windows `env_key` 对照 `2026-08-12` |
 
 Windows Desktop 路径已有 OpenAI parent → DeepSeek child → native callback 基线；
 当前 PowerShell 加固实现通过本地协议、并发与恢复测试，尚待更新后的 live smoke。
+[Issue #6](https://github.com/Utopia-V/codex-deepseek-subagent/issues/6) 的受控对照进一步
+确认：Windows Desktop 继承 `env_key` 后 child/callback 成功，而同一 Agent 的
+User/HKCU command auth 在 sandbox identity 下不可用。
 macOS 的 Python/POSIX 路径已在 Codex `0.146.0` 上通过同一 callback 流程和 27 项
 协议测试；Linux 使用同一 POSIX 实现。
 
@@ -63,9 +66,9 @@ Codex `0.145.0` 将可配置 subagent 模型与 reasoning effort 的 Multi-agent
 
 | 路径 | 用途 |
 | --- | --- |
-| [`agents/v4-flash-worker.toml`](../agents/v4-flash-worker.toml) | macOS/Linux Agent 模板 |
+| [`agents/v4-flash-worker.toml`](../agents/v4-flash-worker.toml) | Windows/macOS/Linux 默认 `env_key` Agent 模板 |
 | [`agents/macos-keychain/v4-flash-worker.toml`](../agents/macos-keychain/v4-flash-worker.toml) | macOS Keychain 可选认证模板 |
-| [`agents/windows-live-env/v4-flash-worker.toml`](../agents/windows-live-env/v4-flash-worker.toml) | Windows 实时读取用户环境变量的模板 |
+| [`agents/windows-live-env/v4-flash-worker.toml`](../agents/windows-live-env/v4-flash-worker.toml) | Windows User/HKCU command-auth 可选兼容模板 |
 | [`skills/use-v4-flash-worker/SKILL.md`](../skills/use-v4-flash-worker/SKILL.md) | 按需加载的选择、交付、等待与失败协议 |
 | [`hooks/plaintext-handoff.ps1`](../hooks/plaintext-handoff.ps1) | Windows stage / Hook 脚本 |
 | [`hooks/plaintext_handoff.py`](../hooks/plaintext_handoff.py) | macOS/Linux Python 3 脚本 |
@@ -116,6 +119,30 @@ fi
 
 仓库目前只对这个模板做了 TOML、命令结构和 secret-safe probe 的静态验证；尚未把
 macOS Keychain 授权提示或真实 provider 调用列为已验证证据。
+
+## Windows 认证边界
+
+Windows 默认也使用 portable `env_key` 模板。设置用户变量后应完整退出并重新启动
+Codex Desktop，使新进程真正继承 `DEEPSEEK_API_KEY`。
+
+可选的 `windows-live-env` 模板通过 command auth 读取 User/HKCU，但该 User scope
+属于命令的实际运行身份。[Issue #6](https://github.com/Utopia-V/codex-deepseek-subagent/issues/6)
+观测到 Codex Desktop 使用
+`CodexSandboxOffline`，因而看不到登录用户 HKCU；失败发生在 `SubagentStart` 之前，
+与 plaintext Hook 无关。下面的诊断只返回身份和布尔值，不输出 key：
+
+```powershell
+[pscustomobject]@{
+  Identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+  ProcessEnvPresent = -not [string]::IsNullOrWhiteSpace($env:DEEPSEEK_API_KEY)
+  UserScopePresent = -not [string]::IsNullOrWhiteSpace(
+    [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'User')
+  )
+}
+```
+
+默认 `env_key` 路径看 `ProcessEnvPresent`；`UserScopePresent` 只用于解释可选 command
+auth 的行为。不要把后者为真当作 Codex provider 一定可读的证明。
 
 ## 自主路由与上下文成本
 

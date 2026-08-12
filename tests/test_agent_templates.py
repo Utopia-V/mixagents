@@ -68,6 +68,17 @@ check_common(windows)
 windows_provider = windows["model_providers"]["deepseek"]
 assert "env_key" not in windows_provider
 assert windows_provider["auth"]["command"] == "powershell.exe"
+windows_source = (ROOT / "agents/windows-live-env/v4-flash-worker.toml").read_text(
+    encoding="utf-8"
+)
+assert "Optional compatibility variant" in windows_source
+assert "sandbox identity" in windows_source
+
+installer = (ROOT / "prompts/install-with-codex.md").read_text(encoding="utf-8")
+assert "On Windows or Linux, use agents/v4-flash-worker.toml" in installer
+assert "former command-auth template remains an explicit compatibility option" in installer
+assert "On Windows, fully\n    restart Codex first" in installer
+assert "On Windows, use agents/windows-live-env/v4-flash-worker.toml" not in installer
 
 probe = """SERVICE='io.github.utopia-v.codex-deepseek-subagent.deepseek-api-key'
 ACCOUNT=$(/usr/bin/id -un)

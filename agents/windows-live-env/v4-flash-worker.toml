@@ -22,8 +22,10 @@ name = "DeepSeek"
 base_url = "https://api.deepseek.com"
 wire_api = "responses"
 
-# This variant reads the user-scoped variable when each request needs a token.
-# It is useful when Codex Desktop was already running when the variable was set.
+# Optional compatibility variant. Codex Desktop may run this command under a
+# sandbox identity whose User scope is not the logged-in user's HKCU. Prefer the
+# portable env_key template and a full Codex restart unless this path is chosen
+# explicitly and verified in the actual host context.
 [model_providers.deepseek.auth]
 command = "powershell.exe"
 args = [
