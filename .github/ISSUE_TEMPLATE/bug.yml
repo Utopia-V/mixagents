@@ -11,6 +11,13 @@ body:
 
         **不要提交 API key、认证 token、完整请求头、未脱敏配置、完整 ciphertext 或与问题无关的私有源码。** 如果凭据已经暴露，请先撤销或轮换，再阅读 [SECURITY.md](https://github.com/Utopia-V/codex-deepseek-subagent/blob/main/SECURITY.md)。
 
+  - type: input
+    id: related-work
+    attributes:
+      label: "相关 Issue/PR / Related work"
+      description: "仓库内使用 #N；普通关联写 Refs #N，没有关联事项可留空。"
+      placeholder: "Refs #1"
+
   - type: dropdown
     id: failure-boundary
     attributes:

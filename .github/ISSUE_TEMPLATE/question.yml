@@ -11,6 +11,13 @@ body:
 
         **不要提交 API key、认证 token、完整请求头或未脱敏配置。**
 
+  - type: input
+    id: related-work
+    attributes:
+      label: "相关 Issue/PR / Related work"
+      description: "仓库内使用 #N；普通关联写 Refs #N，没有关联事项可留空。"
+      placeholder: "Refs #1"
+
   - type: dropdown
     id: category
     attributes:

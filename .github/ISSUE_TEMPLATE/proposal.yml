@@ -9,6 +9,13 @@ body:
       value: |
         请先说明真实问题，再讨论实现。一个能被合并的提案需要保留主 Agent/provider 独立、凭据边界、原生 child/callback 语义与可验证性；仅新增 provider/model 组合请改用资格验证表单。
 
+  - type: input
+    id: related-work
+    attributes:
+      label: "相关 Issue/PR / Related work"
+      description: "仓库内使用 #N；普通关联写 Refs #N，没有关联事项可留空。"
+      placeholder: "Refs #1"
+
   - type: textarea
     id: problem
     attributes:
