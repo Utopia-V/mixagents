@@ -1,0 +1,127 @@
+name: "Pi DSH Mimic 运行或安装故障"
+description: "报告 pi-dsh-mimic 的安装、session 武装、首请求、editor、晋升或 provider 故障。"
+title: "[Bug][Pi]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        本表只处理 `pi-dsh-mimic`。Codex custom-subagent 故障请使用 Codex bug 表单。
+
+        **不要提交 API key、认证 token、完整请求头、未脱敏 provider payload 或与问题无关的私有源码。** 如果凭据已经暴露，请先撤销或轮换，再阅读 [SECURITY.md](https://github.com/Utopia-V/codex-deepseek-subagent/blob/main/SECURITY.md)。
+
+  - type: input
+    id: related-work
+    attributes:
+      label: "相关 Issue/PR / Related work"
+      description: "仓库内使用 #N；没有关联事项可留空。"
+      placeholder: "Refs #1"
+
+  - type: dropdown
+    id: route
+    attributes:
+      label: "Provider route"
+      options:
+        - "deepseek/deepseek-v4-pro"
+        - "opencode-go/deepseek-v4-pro"
+        - "Non-target route expected to remain untouched"
+        - "Unknown"
+    validations:
+      required: true
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: "版本与环境 / Versions and environment"
+      placeholder: |
+        pi-dsh-mimic version or commit:
+        Pi version:
+        Node.js version:
+        Operating system:
+        Fresh session or existing conversation:
+        Other loaded Pi packages:
+    validations:
+      required: true
+
+  - type: dropdown
+    id: failure-boundary
+    attributes:
+      label: "失败边界 / Failure boundary"
+      options:
+        - "Install or package load"
+        - "Fresh-session arming"
+        - "Bootstrap request shape"
+        - "str_replace_editor execution"
+        - "Promotion after assistant response or tool call"
+        - "Pi-native request restoration"
+        - "Provider request or response"
+        - "Model behavior or Project2 result"
+        - "Non-target isolation"
+        - "Unknown"
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: "问题摘要 / Summary"
+      description: "说明哪个可观察行为失败，不要先把轨迹指纹或 provider 差异写成根因。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "最小复现 / Minimal reproduction"
+      placeholder: |
+        1. Select provider/model before a fresh session.
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: "实际结果 / Observed result"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "预期结果 / Expected result"
+      description: "引用当前 README、advanced 或测试合同中的对应行为。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: controls
+    attributes:
+      label: "已运行的离线检查 / Offline controls"
+      placeholder: |
+        npm run check:
+        npm run pack:check:
+        Fresh-session retry:
+        Non-target route control:
+        Conflicting str_replace_editor checked:
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "脱敏日志 / Redacted logs"
+      description: "只保留定位失败边界所需的最短片段。"
+      render: shell
+
+  - type: checkboxes
+    id: report-integrity
+    attributes:
+      label: "提交确认 / Submission checks"
+      options:
+        - label: "我在新的目标 session 中复核过问题，或已明确说明它只发生在已有对话。"
+          required: true
+        - label: "我没有提交 API key、token、完整请求头、未脱敏 payload 或其他秘密。"
+          required: true
+        - label: "如果本 Issue 由 Agent 起草，我已经核对实际观测，并明确标出未运行项和推断。"
+          required: true

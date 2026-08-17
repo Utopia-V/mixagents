@@ -1,0 +1,70 @@
+{
+  "name": "pi-dsh-mimic",
+  "version": "0.1.0",
+  "description": "Unlock DeepSeek V4 Pro's DSH Minimal capability in Pi while keeping Pi's full plugin ecosystem",
+  "type": "module",
+  "main": "./src/index.ts",
+  "license": "MIT",
+  "keywords": [
+    "pi",
+    "pi-package",
+    "pi-extension",
+    "deepseek",
+    "deepseek-v4-pro",
+    "dsh",
+    "dsh-minimal",
+    "mimic",
+    "pi-plugins"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Utopia-V/codex-deepseek-subagent.git",
+    "directory": "packages/pi-dsh-mimic"
+  },
+  "homepage": "https://github.com/Utopia-V/codex-deepseek-subagent/tree/main/packages/pi-dsh-mimic#readme",
+  "bugs": {
+    "url": "https://github.com/Utopia-V/codex-deepseek-subagent/issues"
+  },
+  "files": [
+    "src",
+    "scripts/session-stats.mjs",
+    "docs/advanced.md",
+    "docs/advanced.zh-CN.md",
+    "docs/project2-evidence.md",
+    "README.md",
+    "README.zh-CN.md",
+    "SECURITY.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "0.84.2",
+    "@earendil-works/pi-coding-agent": "0.84.2",
+    "@types/node": "24.12.4",
+    "tsx": "4.20.6",
+    "typebox": "1.3.7",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "test": "tsx --test test/*.test.ts test/*.test.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check": "npm run typecheck && npm test",
+    "pack:check": "npm pack --dry-run"
+  }
+}

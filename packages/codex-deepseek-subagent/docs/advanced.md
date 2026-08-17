@@ -36,7 +36,7 @@ Responses 或 Chat Completions API 的模型/provider；由于 Chat Completions 
    若仍遇到跨 provider ciphertext 边界，则可适配同一 one-shot Hook 协议。
 
 本仓库的现成工件仍然有意绑定 `v4_flash_worker` 和 DeepSeek：Agent 模板、认证、
-Hook matcher、脚本中的 role、skill、`AGENTS.md` 索引与 smoke oracle 必须作为一个
+Hook matcher、脚本中的 role、skill、`AGENTS.md` 索引与 smoke 验收条件必须作为一个
 整体一致地改名和重验。只替换 `model` 或 `base_url` 不足以证明新的组合可用。
 
 ## 已测试基线

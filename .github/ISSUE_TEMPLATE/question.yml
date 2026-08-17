@@ -19,6 +19,18 @@ body:
       placeholder: "Refs #1"
 
   - type: dropdown
+    id: component
+    attributes:
+      label: "Component"
+      options:
+        - "codex-deepseek-subagent"
+        - "pi-dsh-mimic"
+        - "Repository index or shared policy"
+        - "Unsure"
+    validations:
+      required: true
+
+  - type: dropdown
     id: category
     attributes:
       label: "类型 / Category"
@@ -36,7 +48,7 @@ body:
     id: source
     attributes:
       label: "相关页面或文件 / Relevant page or file"
-      placeholder: "README.md, docs/advanced.md, or URL"
+      placeholder: "packages/pi-dsh-mimic/README.md, component advanced doc, or URL"
     validations:
       required: true
 

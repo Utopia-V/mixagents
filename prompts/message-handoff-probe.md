@@ -1,44 +1,6 @@
-# Optional raw V2 message-only handoff probe
+# Compatibility entry: V2 message-only probe
 
-This diagnostic intentionally bypasses the repository's recommended Hook. It
-tests one narrow upstream Codex transport property: whether the current host can
-deliver a task that exists only in a Multi-agent V2 collaboration message from
-an OpenAI parent to the DeepSeek-backed child.
+This legacy path is retained for previously published links. Read and strictly
+follow the current diagnostic probe at:
 
-Run it only while diagnosing a Codex transport change. Do not use it as the
-installation smoke test, an ordinary-delegation preflight, or a reason to vary
-routing on every child call.
-
-```text
-Use Codex's native subagent mechanism to spawn the custom agent whose exact
-agent type is v4_flash_worker.
-
-Set fork_turns to "none". Do not stage a Hook handoff. Give the child only this
-spawn message:
-
-  Return exactly: V4_FLASH_RAW_V2_MESSAGE_OK_8F31C2
-
-Do not place that token in a file, Hook context, inherited turn, follow-up user
-message, direct API request, another CLI process, or another application. Do
-not retry through a different transport if the child reports that no task was
-received.
-
-After the child finishes, report whether it returned the exact token. A missing
-assignment is the expected failure signature on affected builds. It does not
-mean custom-agent discovery, DeepSeek authentication, native child execution,
-the one-shot Hook, or callback delivery is broken.
-```
-
-On affected Multi-agent V2 builds, the OpenAI parent emits an encrypted
-collaboration argument. Codex then creates the correctly configured external-
-provider child, but the child receives an empty visible `Payload:` plus opaque
-encrypted content that DeepSeek cannot interpret. The merged plaintext work in
-[openai/codex#35845](https://github.com/openai/codex/pull/35845) handles calls
-that already carry the explicit plaintext marker; it does not repair the real
-OpenAI-parent path when the model has already produced ciphertext. See
-[openai/codex#36376](https://github.com/openai/codex/issues/36376) and
-[openai/codex#34833](https://github.com/openai/codex/issues/34833).
-
-The recommended runtime smoke test therefore uses a trusted `SubagentStart`
-Hook to add the assignment as ordinary developer context and spawns with
-`fork_turns="none"`. Do not repeatedly rerun this raw probe before normal work.
+https://raw.githubusercontent.com/Utopia-V/codex-deepseek-subagent/main/packages/codex-deepseek-subagent/prompts/message-handoff-probe.md

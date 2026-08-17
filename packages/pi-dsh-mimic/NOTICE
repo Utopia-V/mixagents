@@ -1,0 +1,16 @@
+pi-dsh-mimic is a Pi implementation that reproduces the DSH Minimal request
+surface for one task-bearing bootstrap, then returns to Pi-native execution.
+
+Its Minimal persona, bash description, editor description, and function
+schemas reproduce the public DeepSeek Harness Minimal request protocol from:
+
+  https://github.com/deepseek-ai/deepseek-harness
+  commit 47f943859bef60e4160492346772ded9b24f765a
+
+DeepSeek Harness is distributed under the MIT License:
+
+  Copyright (c) 2026 DeepSeek
+
+The retained permission notice is included in LICENSE. Historical experiments
+and research sources are documented separately from the package's source-code
+provenance.

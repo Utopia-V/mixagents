@@ -1,6 +1,6 @@
-name: "Provider/model 适配与资格验证"
-description: "提议或记录一个新的 provider/model custom-subagent 组合及其可验证边界。"
-title: "[Provider]: "
+name: "Codex provider/model 适配与资格验证"
+description: "提议或记录 codex-deepseek-subagent 的新 provider/model 组合及其可验证边界。"
+title: "[Provider][Codex]: "
 labels:
   - enhancement
   - provider
@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        本仓库的现成实现绑定 DeepSeek 与 `v4_flash_worker`。新的组合不能仅凭 endpoint 可用或一次文本回复就宣称兼容；请区分提议、观察、推断和实际通过的资格项。
+        `codex-deepseek-subagent` 的现成实现绑定 DeepSeek 与 `v4_flash_worker`。新的组合不能仅凭 endpoint 可用或一次文本回复就宣称兼容；请区分提议、观察、推断和实际通过的资格项。Pi route 提案请使用 Improvement proposal。
 
         **不要提交 API key、认证 token、完整请求头或未脱敏配置。**
 

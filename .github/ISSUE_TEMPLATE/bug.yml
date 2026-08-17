@@ -1,12 +1,14 @@
-name: "运行或安装故障 / Runtime bug"
-description: "报告安装、Agent discovery、Hook、provider、tool call 或 callback 故障。"
-title: "[Bug]: "
+name: "Codex subagent 运行或安装故障"
+description: "报告 Codex component 的安装、Agent discovery、Hook、provider、tool call 或 callback 故障。"
+title: "[Bug][Codex]: "
 labels:
   - bug
 body:
   - type: markdown
     attributes:
       value: |
+        本表只处理 `codex-deepseek-subagent` component。Pi extension 故障请使用 Pi bug 表单。
+
         感谢提供可复现证据。可以让 Agent 协助整理本表，但请由提交者核对实际发生的行为。
 
         **不要提交 API key、认证 token、完整请求头、未脱敏配置、完整 ciphertext 或与问题无关的私有源码。** 如果凭据已经暴露，请先撤销或轮换，再阅读 [SECURITY.md](https://github.com/Utopia-V/codex-deepseek-subagent/blob/main/SECURITY.md)。

@@ -48,7 +48,7 @@ A new provider/model pair must satisfy at least these conditions:
 
 The ready-made artifacts in this repository remain deliberately bound to
 `v4_flash_worker` and DeepSeek. The agent template, authentication, Hook
-matcher, script role, skill, `AGENTS.md` index, and smoke oracles must be renamed
+matcher, script role, skill, `AGENTS.md` index, and smoke acceptance criteria must be renamed
 and requalified as one coherent set. Replacing only `model` or `base_url` does
 not establish that a new combination works.
 

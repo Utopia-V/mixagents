@@ -5,3 +5,9 @@ Thumbs.db
 !.env.example
 *.local.toml
 secrets/
+node_modules/
+*.tsbuildinfo
+*.tgz
+__pycache__/
+*.py[cod]
+*.local.md

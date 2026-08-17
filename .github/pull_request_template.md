@@ -2,6 +2,8 @@
 
 <!-- 说明可观察行为发生了什么变化。 / Describe the observable change. -->
 
+Component: <!-- codex-deepseek-subagent / pi-dsh-mimic / repository -->
+
 ## 关联事项 / Related work
 
 <!-- 使用 Fixes/Closes/Refs/Supersedes #N；没有关联事项时写 None。 -->

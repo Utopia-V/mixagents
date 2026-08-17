@@ -1,152 +1,51 @@
-[简体中文](README.md) · [Advanced notes](docs/advanced.en.md)
+[简体中文](README.md)
 
-# Codex DeepSeek Subagent
+# Agent integrations for Codex and Pi
 
-Keep the Codex main task on GPT / OpenAI while using the inexpensive, fast
-`deepseek-v4-flash` as a native subagent for search, enumeration, logs, and
-high-volume text work.
+This repository maintains two independent components. One adds a native
+DeepSeek V4 Flash child to Codex. The other starts DeepSeek V4 Pro inside Pi
+with a DSH Minimal request, then returns to Pi-native execution.
 
-DeepSeek is the ready-to-use implementation shipped by this repository, not a
-limit of the composition. Any provider/model pair that Codex can call through a
-supported API and that satisfies the task's capability and data boundaries can
-be adapted into an independent subagent in the same way. The current installer
-still installs only the verified DeepSeek configuration. See
-[Adapting another provider/model](docs/advanced.en.md#adapting-another-providermodel).
+| Component | Purpose | Current status | Documentation |
+| --- | --- | --- | --- |
+| **Codex DeepSeek Subagent** | Keep the Codex parent on OpenAI while delegating suitable text, log, and search work to a `deepseek-v4-flash` child | Windows and POSIX plaintext handoff protocol coverage | [User guide](packages/codex-deepseek-subagent/README.en.md) · [Advanced notes](packages/codex-deepseek-subagent/docs/advanced.en.md) |
+| **Pi DSH Mimic** | Reproduce DSH Minimal for Pi's first request to activate a strong V4 Pro trajectory, then restore Pi's complete tool catalog and plugin ecosystem | `0.1.0`; the same request flow scored 98, 96, 96, and 98 on Project2; not yet published to npm | [User guide](packages/pi-dsh-mimic/README.md) · [Experiments and design](packages/pi-dsh-mimic/docs/advanced.md) · [Evidence ledger (Chinese canonical)](packages/pi-dsh-mimic/docs/project2-evidence.md) |
 
-This installation does not require CC Switch, MCP, a plugin, another Codex CLI,
-or a global switch to DeepSeek. Complete the three steps below.
+## Choose a component
 
-## Three-step install
+- Install **Codex DeepSeek Subagent** to keep the Codex parent on OpenAI while
+  using a lower-cost DeepSeek child for suitable bounded work.
+- Install **Pi DSH Mimic** when Pi already uses `deepseek-v4-pro` or
+  `opencode-go/deepseek-v4-pro` and the model should begin from the verified DSH
+  Minimal trajectory while retaining Pi's `read/edit/write` tools and other
+  plugins.
 
-### 1. Set the DeepSeek API key
+Pi DSH Mimic reproduces only DSH Minimal's first-request interface. Users do not
+need to install or run the complete DSH harness; Pi still owns execution,
+sessions, and plugin composition.
 
-Create a key in DeepSeek and store it as the `DEEPSEEK_API_KEY` environment
-variable. Never paste the key into a Codex chat, Issue, screenshot, or repository.
+## Data, security, and cost
 
-- Windows: search System Settings for “environment variables” and add
-  `DEEPSEEK_API_KEY` under user variables, then fully quit and restart Codex
-  Desktop. Do not rely on an already-running Desktop process to read a variable
-  that was set later.
-- macOS / Linux: set `DEEPSEEK_API_KEY` in the shell or secret manager that will
-  launch Codex, then start Codex.
+Both components send task content to the external provider configured by the
+user. The Codex component briefly stores a plaintext assignment in local user
+state. The Pi component contributes a `str_replace_editor` that can write files.
+Review the relevant documentation before installation:
 
-macOS also has a separate Keychain authentication template for launch paths that
-do not inherit a shell environment. The default remains the environment-variable
-template; Keychain is selected only when explicitly requested, and existing
-installations are not migrated automatically. See
-[Optional macOS Keychain authentication](docs/advanced.en.md#optional-macos-keychain-authentication).
+- [Codex security](packages/codex-deepseek-subagent/SECURITY.md)
+- [Pi security](packages/pi-dsh-mimic/SECURITY.md)
+- [Repository security entry point](SECURITY.md)
 
-If you do not know how, ask Codex to explain environment-variable setup for your
-operating system without giving it the key itself. See [SECURITY.md](SECURITY.md).
+DeepSeek and OpenCode API charges are separate from an OpenAI or ChatGPT
+subscription. Offline installation and tests should make no model request;
+smoke tests and complete model runs are billed to the selected provider.
 
-### 2. Paste this into Codex
+## Layout and legacy entry points
 
-```text
-Read and follow
-https://raw.githubusercontent.com/Utopia-V/codex-deepseek-subagent/main/prompts/install-with-codex.md
-exactly to install its DeepSeek V4 Flash subagent. Preserve my current main
-model/provider and ChatGPT login, never ask for or print my API key, and stop
-after provider-free local validation; do not run the paid smoke test yet.
-```
+Each component keeps its source, tests, and documentation inside its own
+`packages/` directory. The root `prompts/` directory contains only forwarders
+for previously published raw URLs. The canonical Codex installation prompt is
+maintained by the Codex component.
 
-Codex downloads, merges, and validates the agent, skill, Hook, and two-rule
-`AGENTS.md` index. Installation does not call DeepSeek or replace the main
-model/provider.
-
-### 3. Trust the Hook, then test
-
-After installation:
-
-1. Enter `/hooks` in Codex. Confirm that the Hook matches only
-   `v4_flash_worker` and points to the installed `plaintext-handoff` script,
-   then trust it.
-2. **Start a new Codex task.** A task that was already running is not guaranteed
-   to reload the new Hook. On Windows, fully restart Codex first if the API key
-   was just set or changed; otherwise a full application restart is normally
-   unnecessary.
-3. Paste this into the new task:
-
-```text
-Read and follow
-https://raw.githubusercontent.com/Utopia-V/codex-deepseek-subagent/main/prompts/quick-smoke-test.md
-exactly to test the installed v4_flash_worker. Do not use another provider, a
-direct API call, or another Codex CLI.
-```
-
-The quick smoke requires no repository checkout and makes one small paid
-DeepSeek API request.
-
-## What success looks like
-
-All of these must be true:
-
-- Codex exposes a distinct native child task whose agent type is
-  `v4_flash_worker`.
-- The child returns the parent's fresh random marker and `arithmetic=323`.
-- The one-shot pending handoff is consumed.
-- The main task remains on its original OpenAI model/provider.
-- No secondary CLI, direct API request, or substitute model fakes the result.
-
-After that, normal use is ready. The parent loads `$use-v4-flash-worker` only
-when appropriate and still decides whether delegation is useful; installation
-does not force every task through Flash.
-
-Installation only adds or updates a standalone agent, skill, Hook, and two
-routing rules in personal Codex configuration. It does not add a top-level
-DeepSeek provider or switch the main task model. The only manual decision is
-reviewing and trusting the Hook through `/hooks`. See
-[Advanced notes](docs/advanced.en.md) for exact file boundaries.
-
-## If it does not work
-
-- **`v4_flash_worker` is missing:** start a new task first; if it is still
-  missing, restart Codex once.
-- **The child says no task arrived:** the Hook is usually untrusted, the current
-  task predates installation, or the Hook did not load. Check `/hooks`, then
-  start a new task. Do not switch to inherited turns.
-- **Authentication is missing:** check only whether the selected environment
-  variable or Keychain item exists; never paste the key into chat.
-- **Windows reports the Agent unavailable before the Hook runs:** make sure the
-  Codex process inherited the environment variable and fully restart it.
-  User/HKCU command auth may resolve against a sandbox identity; see
-  [Advanced notes](docs/advanced.en.md#windows-authentication-boundary).
-- **The installer asks to switch the global provider, start another CLI, or
-  install MCP:** stop. That is not this repository's route.
-
-If the problem remains, prefer the appropriate
-[structured Issue Form](https://github.com/Utopia-V/codex-deepseek-subagent/issues/new/choose).
-If none fits, a Blank Issue is also available. Please provide the operating
-system, Codex version, failing boundary, and redacted output where possible.
-Never attach an API key, complete request headers, or an unredacted configuration
-dump. An agent may help draft the report, but a person must check the observations,
-inferences, and controls that were not run before submission. Reproducible
-evidence helps distinguish failures in configuration, agent discovery, the Hook,
-the provider request, and the callback, and it also helps later users.
-
-## Advanced users and contributors
-
-- Architecture, the V1 workaround, current upstream V2 defect, configuration
-  boundaries, and migration condition: [Advanced notes](docs/advanced.en.md)
-- Full agent-facing installation contract:
-  [prompts/install-with-codex.md](prompts/install-with-codex.md)
-- Contributor smoke with local tools and SHA-256:
-  [prompts/smoke-test.md](prompts/smoke-test.md)
-- Raw V2 message-only diagnostic:
-  [prompts/message-handoff-probe.md](prompts/message-handoff-probe.md)
-- Credentials, plaintext local state, and the DeepSeek data boundary:
-  [SECURITY.md](SECURITY.md)
-
-The Windows Desktop route has a live-smoke baseline; the hardened PowerShell
-implementation passes its local protocol, concurrency, and recovery suite and
-still needs a post-hardening live smoke. On macOS, the Python/POSIX route has
-passed a native callback smoke on Codex `0.146.0` and 27 protocol tests; Linux
-uses the same POSIX implementation.
-
-## Cost and affiliation
-
-DeepSeek API billing is separate from a ChatGPT/OpenAI subscription.
-Installation makes no DeepSeek call; the quick smoke and later Flash children
-are billed to the DeepSeek account.
-
-MIT. This is an independent configuration example and is not affiliated with
-or endorsed by OpenAI or DeepSeek.
+See [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) for issue and contribution
+conventions. This is an independent community project and is not affiliated
+with or endorsed by OpenAI, DeepSeek, Pi, or OpenCode.

@@ -13,6 +13,7 @@ except ModuleNotFoundError:
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = ROOT.parents[1]
 
 
 def load(relative: str):
@@ -75,10 +76,21 @@ assert "Optional compatibility variant" in windows_source
 assert "sandbox identity" in windows_source
 
 installer = (ROOT / "prompts/install-with-codex.md").read_text(encoding="utf-8")
-assert "On Windows or Linux, use agents/v4-flash-worker.toml" in installer
+assert (
+    "packages/codex-deepseek-subagent/agents/v4-flash-worker.toml" in installer
+)
 assert "former command-auth template remains an explicit compatibility option" in installer
 assert "On Windows, fully\n    restart Codex first" in installer
 assert "On Windows, use agents/windows-live-env/v4-flash-worker.toml" not in installer
+for source_path in (
+    "packages/codex-deepseek-subagent/skills/use-v4-flash-worker",
+    "packages/codex-deepseek-subagent/hooks/plaintext-handoff.ps1",
+    "packages/codex-deepseek-subagent/hooks/plaintext_handoff.py",
+    "packages/codex-deepseek-subagent/snippets/AGENTS.md",
+    "packages/codex-deepseek-subagent/tests/plaintext-handoff.windows.ps1",
+    "packages/codex-deepseek-subagent/tests/test_plaintext_handoff.py",
+):
+    assert source_path in installer
 
 probe = """SERVICE='io.github.utopia-v.codex-deepseek-subagent.deepseek-api-key'
 ACCOUNT=$(/usr/bin/id -un)
@@ -98,5 +110,22 @@ for relative in (
         re.DOTALL,
     )
     assert probe in (textwrap.dedent(block).strip() for block in blocks)
+
+assert (ROOT / "LICENSE").read_text(encoding="utf-8") == (
+    REPOSITORY_ROOT / "LICENSE"
+).read_text(encoding="utf-8")
+
+for prompt_name in (
+    "install-with-codex.md",
+    "quick-smoke-test.md",
+    "smoke-test.md",
+    "message-handoff-probe.md",
+):
+    legacy = (REPOSITORY_ROOT / "prompts" / prompt_name).read_text(encoding="utf-8")
+    canonical_url = (
+        "https://raw.githubusercontent.com/Utopia-V/codex-deepseek-subagent/main/"
+        f"packages/codex-deepseek-subagent/prompts/{prompt_name}"
+    )
+    assert canonical_url in legacy
 
 print("agent template checks passed")
