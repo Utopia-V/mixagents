@@ -28,6 +28,11 @@ DeepSeek Harness Minimal 环境，让 DeepSeek V4 Pro 从已验证的高能力�
 
 ## Project2 结果
 
+Project2 V4.1b 是一个个人、自托管的长程代码维护评测。模型需要修复一个多模块 Python
+后端与 ESP32-S3 固件仓库，覆盖鉴权与 session 隐私、数据库迁移、跨模块功能、兼容性、
+Wi-Fi/MQTT/NVS/协议与 ESP-IDF 契约，以及交付说明。它不是通用 benchmark；这里的分数
+只用于比较同一冻结任务下的工程完成度。
+
 默认 Pi 得到 92。相同 one-shot 请求流程的四次最终结果为 **98、96、96、98**，均保持
 F3 16/16：
 
@@ -37,7 +42,7 @@ F3 16/16：
 | 早期 Minimal 模拟原型 | DeepSeek 官方 API | **98** | F3 16，F6 10，F8 7 |
 | 同流程复现实验 | DeepSeek 官方 API | 96 | F3 16，F6 10，F8 5 |
 | 首次 package 化实现 | DeepSeek 官方 API | 96 | F3 16，F6 8，F8 7 |
-| 当前独立实现 `0.1.0` | OpenCode Go | **98** | F3 16，F6 10，F8 7 |
+| 当前独立实现 | OpenCode Go | **98** | F3 16，F6 10，F8 7 |
 
 这些结果表明：DSH Minimal 首请求可以在 Pi 中稳定建立高能力轨迹，而恢复 Pi 完整工具
 目录不会破坏它。实验过程、被否决的设计和每项实现选择的依据见
@@ -49,6 +54,18 @@ F3 16/16：
 要求：Node.js 22.19 或更新版本、Pi 0.84.2 或更新版本，并已配置 DeepSeek 官方 API 或
 OpenCode Go。Pi 0.84.2 已内置两条 provider 路径。
 
+从 npm 安装到当前用户：
+
+```bash
+pi install npm:pi-dsh-mimic
+```
+
+项目级安装：
+
+```bash
+pi install -l npm:pi-dsh-mimic
+```
+
 直接试用当前 checkout：
 
 ```bash
@@ -57,24 +74,9 @@ pi -e ./packages/pi-dsh-mimic \
   --model deepseek-v4-pro
 ```
 
-使用 OpenCode Go 时，把 key 配置在 Pi 期望的 `OPENCODE_API_KEY` 环境变量中：
-
-```bash
-pi -e ./packages/pi-dsh-mimic \
-  --provider opencode-go \
-  --model deepseek-v4-pro
-```
-
-安装到当前用户：
-
-```bash
-pi install ./packages/pi-dsh-mimic
-```
-
-项目级安装使用 `pi install -l ./packages/pi-dsh-mimic`。当前 package 尚未发布到 npm。
-Manifest 已包含 Pi gallery 要求的 `pi-package` keyword；发布到 npm 后才会出现在
-[Pi Package Catalog](https://pi.dev/packages)，安装命令将是
-`pi install npm:pi-dsh-mimic`。当前 checkout 不会被市场索引。
+使用 OpenCode Go 时，把 key 配置在 Pi 期望的 `OPENCODE_API_KEY` 环境变量中，并把
+provider 改为 `opencode-go`。Package 已发布到 npm，并带有 Pi gallery 要求的
+`pi-package` keyword，可由 [Pi Package Catalog](https://pi.dev/packages) 索引。
 
 先选择 V4 Pro，再新建 session。在已有对话中途切换到 V4 Pro 不会伪造新的 bootstrap。
 

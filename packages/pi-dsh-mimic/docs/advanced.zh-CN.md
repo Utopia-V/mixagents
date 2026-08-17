@@ -13,7 +13,12 @@ session、工具执行、文件编辑和插件组合。用户既能获得 Projec
 
 ## 实验口径
 
-本地实验使用 Project2 V4.1b，冻结于提交
+Project2 V4.1b 是一个个人、自托管的长程代码维护评测。模型接手一个故意保留缺陷的
+多模块 Python 后端与 ESP32-S3 固件仓库，完成鉴权与 session 隐私、数据库迁移、跨模块
+功能、兼容性、Wi-Fi/MQTT/NVS/协议与 ESP-IDF 契约，以及最终交付证据。它不是通用
+benchmark。
+
+本地实验使用这套 Project2 V4.1b 任务，冻结于提交
 `04255b55f16c4439e538239fb9783070c4165081`。同一运行中断后续跑时，只记录最终交卷分；
 错误 project root、零 token 配置失败和重复评分不计作新样本。
 
@@ -65,7 +70,7 @@ context 必须显式携带 `session_id`，voice 路径先取得 current session 
 | 实现 | Provider | 分数 | F3 | F6 | F8 |
 | --- | --- | ---: | ---: | ---: | ---: |
 | 首次 package 化实现 | DeepSeek 官方 API | 96 | 16 | 8 | 7 |
-| 当前独立实现 `0.1.0` | OpenCode Go | **98** | 16 | 10 | 7 |
+| 当前独立实现 | OpenCode Go | **98** | 16 | 10 | 7 |
 
 OpenCode Go 的初始请求在生成 token 前遇到账户 opt-in 403。同一 session 完成 opt-in 后
 续跑，模型最终自然 `stop` 并得到 98。这次运行验证了当前实现能够通过 OpenCode Go

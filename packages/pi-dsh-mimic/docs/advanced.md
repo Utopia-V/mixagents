@@ -16,7 +16,14 @@ runtime.
 
 ## Experimental basis
 
-Local runs use Project2 V4.1b at frozen commit
+Project2 V4.1b is a personal, self-hosted long-horizon repository-maintenance
+evaluation. The model repairs a deliberately broken multi-module Python backend
+and ESP32-S3 firmware project covering authentication and session privacy,
+database migrations, cross-module features, backward compatibility,
+Wi-Fi/MQTT/NVS/protocol and ESP-IDF contracts, and final delivery evidence. It
+is not a general benchmark.
+
+Local runs use this Project2 V4.1b task at frozen commit
 `04255b55f16c4439e538239fb9783070c4165081`. When a run resumed after an
 interruption, only its final submission score entered the comparison. A wrong
 project root, a zero-token configuration failure, and duplicate evaluation do
@@ -78,7 +85,7 @@ implementations:
 | Implementation | Provider | Score | F3 | F6 | F8 |
 | --- | --- | ---: | ---: | ---: | ---: |
 | First packaged implementation | Official DeepSeek API | 96 | 16 | 8 | 7 |
-| Current independent implementation `0.1.0` | OpenCode Go | **98** | 16 | 10 | 7 |
+| Current independent implementation | OpenCode Go | **98** | 16 | 10 | 7 |
 
 The initial OpenCode Go request hit an account opt-in 403 before producing a
 token. The same session resumed after opt-in, stopped naturally, and scored 98.

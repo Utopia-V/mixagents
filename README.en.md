@@ -9,7 +9,14 @@ with a DSH Minimal request, then returns to Pi-native execution.
 | Component | Purpose | Current status | Documentation |
 | --- | --- | --- | --- |
 | **Codex DeepSeek Subagent** | Keep the Codex parent on OpenAI while delegating suitable text, log, and search work to a `deepseek-v4-flash` child | Windows and POSIX plaintext handoff protocol coverage | [User guide](packages/codex-deepseek-subagent/README.en.md) · [Advanced notes](packages/codex-deepseek-subagent/docs/advanced.en.md) |
-| **Pi DSH Mimic** | Reproduce DSH Minimal for Pi's first request to activate a strong V4 Pro trajectory, then restore Pi's complete tool catalog and plugin ecosystem | `0.1.0`; the same request flow scored 98, 96, 96, and 98 on Project2; not yet published to npm | [User guide](packages/pi-dsh-mimic/README.md) · [Experiments and design](packages/pi-dsh-mimic/docs/advanced.md) · [Evidence ledger (Chinese canonical)](packages/pi-dsh-mimic/docs/project2-evidence.md) |
+| **Pi DSH Mimic** | Reproduce DSH Minimal for Pi's first request to activate a strong V4 Pro trajectory, then restore Pi's complete tool catalog and plugin ecosystem | `0.1.1`; the same request flow scored 98, 96, 96, and 98 on Project2; published to npm | [User guide](packages/pi-dsh-mimic/README.md) · [Experiments and design](packages/pi-dsh-mimic/docs/advanced.md) · [Evidence ledger (Chinese canonical)](packages/pi-dsh-mimic/docs/project2-evidence.md) |
+
+Project2 V4.1b is a personal, self-hosted long-horizon repository-maintenance
+evaluation. The model repairs a deliberately broken multi-module Python backend
+and ESP32-S3 firmware project covering authentication and session privacy,
+database migrations, cross-module features, backward compatibility,
+Wi-Fi/MQTT/NVS/protocol and ESP-IDF contracts, and final delivery evidence. It
+is not a general cross-project benchmark; the scores describe this frozen task.
 
 ## Choose a component
 

@@ -15,6 +15,11 @@
 本文记录支持当前实现的完整结果、纳入与排除规则、外部校准和来源关系。原始 run、
 trajectory、provider capture 与 grader 输出由维护者实验归档保存，不随仓库分发。
 
+Project2 V4.1b 是一个个人、自托管的长程代码维护评测，不是跨项目通用 benchmark。
+候选模型需要修复一个多模块 Python 后端与 ESP32-S3 固件仓库，覆盖鉴权与 session 隐私、
+数据库迁移、跨模块功能、兼容性、Wi-Fi/MQTT/NVS/协议与 ESP-IDF 契约，以及交付证据。
+100 分 Ability 分数表示这套冻结任务中的工程完成度。
+
 ## 计分口径
 
 - 同一运行中断后续跑，只保留最终交卷分；续跑前分数属于中间状态。
@@ -41,7 +46,7 @@ trajectory、provider capture 与 grader 输出由维护者实验归档保存，
 | 默认 Pi baseline | 完整 Pi prompt + 5 工具，全程 native | `Let me` | **92** | F3 11，F6 10，F8 6 | 默认对照；ambient-session 少 5 分 |
 | 早期 Minimal 模拟原型 | 原任务 + Minimal + DSH `bash/editor`；随后 Pi 原生 5 工具；不重放 context | `We need` | **98** | F3 16，F6 10，F8 7 | 首次证明 Pi 能进入高能力轨迹 |
 | 首次 package 化实现 | 同一首包；随后 Pi 原生；同 session 续过一次 402 | `We need` | **96** | F3 16，F6 8，F8 7 | 干净 package 复现目标轨迹；迁移少 2 分 |
-| 当前独立实现 `0.1.0` | 初始首包遇 403；opt-in 后同 session 续跑并恢复 Pi 原生 | `We need` | **98** | F3 16，F6 10，F8 7 | OpenCode Go 再次进入同一高分档 |
+| 当前独立实现 | 初始首包遇 403；opt-in 后同 session 续跑并恢复 Pi 原生 | `We need` | **98** | F3 16，F6 10，F8 7 | OpenCode Go 再次进入同一高分档 |
 | 持续 DSH wire | 同一首包；后续请求继续 DSH 规范化 | `We need` | **94** | F3 11，F6 10，F8 8 | 指纹保持，关键安全判断没有保持 |
 | Pi context 重放 | 同一首包；随后 Pi 原生，但把完整 system context 作为额外 user message | `We need` | **90** | F3 11，F6 8，F8 6 | 额外 context 增加干扰，迁移退化 |
 | 同流程复现实验 | 同一首包；随后 Pi 原生；不重放 context | `We need` | **96** | F3 16，F6 10，F8 5 | 高分区间复现；ESP 静态完成度较低 |
@@ -103,7 +108,7 @@ blocks 只计 assistant content 中的 `thinking` block。`We need` 与 `Let me`
 | 默认 Pi baseline | 92 | 113 | 78 | 0 | 115 | 2 / 156 |
 | 早期 Minimal 模拟原型 | 98 | 149 | 135 | 8 | 1 | 10 / 1 |
 | 首次 package 化实现 | 96 | 147 | 147 | 11 | 0 | 11 / 0 |
-| 当前独立实现 `0.1.0` | 98 | 160 | 156 | 7 | 0 | 7 / 0 |
+| 当前独立实现 | 98 | 160 | 156 | 7 | 0 | 7 / 0 |
 | 持续 DSH wire | 94 | 196 | 190 | 6 | 2 | 7 / 2 |
 | Pi context 重放 | 90 | 189 | 184 | 6 | 0 | 8 / 0 |
 | 同流程复现实验 | 96 | 160 | 155 | 10 | 0 | 12 / 0 |
@@ -120,7 +125,7 @@ blocks 只计 assistant content 中的 `thinking` block。`We need` 与 `Let me`
 | 默认 Pi baseline | 157 | `bash` 79，`edit` 32，`read` 30，`write` 16 | `toolUse` 112，`stop` 1，`error` 1 |
 | 早期 Minimal 模拟原型 | 148 | `bash` 83，`edit` 49，`write` 16 | `toolUse` 148，`stop` 1 |
 | 首次 package 化实现 | 189 | `bash` 82，`read` 48，`edit` 42，`write` 17 | `toolUse` 146，`stop` 1，`error` 2 |
-| 当前独立实现 `0.1.0` | 193 | `bash` 98，`read` 49，`edit` 31，`write` 15 | `toolUse` 159，`stop` 1，`error` 1 |
+| 当前独立实现 | 193 | `bash` 98，`read` 49，`edit` 31，`write` 15 | `toolUse` 159，`stop` 1，`error` 1 |
 | 持续 DSH wire | 225 | `bash` 94，`edit` 65，`read` 53，`write` 13 | `toolUse` 195，`stop` 1 |
 | Pi context 重放 | 220 | `bash` 76，`edit` 66，`read` 63，`write` 15 | `toolUse` 188，`stop` 1 |
 | 同流程复现实验 | 176 | `bash` 176 | `toolUse` 159，`stop` 1，`error` 1 |
@@ -213,7 +218,8 @@ evaluator。
 
 ## 当前决定
 
-- 产品名为 `pi-dsh-mimic`，首个公开版本为 `0.1.0`。
+- 产品名为 `pi-dsh-mimic`。`0.1.0` 是首次公开实现；`0.1.1` 只补充 Project2 语境和
+  已发布安装说明，运行时代码不变。
 - 默认流程固定为 task-bearing one-shot：请求 #1 模拟 DSH Minimal，请求 #2 恢复 Pi。
 - 同时支持 Pi 的 `deepseek` 与 `opencode-go` provider。
 - Minimal persona 保持；完整 Pi system context 不重放。

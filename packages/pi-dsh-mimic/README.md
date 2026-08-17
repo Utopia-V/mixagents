@@ -33,6 +33,14 @@ the task, does not inject `We need`, and does not proxy the API.
 
 ## Project2 results
 
+Project2 V4.1b is a personal, self-hosted long-horizon repository-maintenance
+evaluation. The model repairs a multi-module Python backend and ESP32-S3
+firmware project covering authentication and session privacy, database
+migrations, cross-module features, backward compatibility,
+Wi-Fi/MQTT/NVS/protocol and ESP-IDF contracts, and delivery evidence. It is not
+a general benchmark; these scores compare engineering completion on one frozen
+task.
+
 Default Pi scored 92. Four final runs of the same one-shot request flow scored
 **98, 96, 96, and 98**, all with F3 at 16/16:
 
@@ -42,7 +50,7 @@ Default Pi scored 92. Four final runs of the same one-shot request flow scored
 | Early Minimal-mimic prototype | Official DeepSeek API | **98** | F3 16, F6 10, F8 7 |
 | Same-flow replication | Official DeepSeek API | 96 | F3 16, F6 10, F8 5 |
 | First packaged implementation | Official DeepSeek API | 96 | F3 16, F6 8, F8 7 |
-| Current independent implementation `0.1.0` | OpenCode Go | **98** | F3 16, F6 10, F8 7 |
+| Current independent implementation | OpenCode Go | **98** | F3 16, F6 10, F8 7 |
 
 The results show that a DSH Minimal first request can establish a strong V4 Pro
 trajectory inside Pi and that restoring Pi's full tool catalog does not break
@@ -57,6 +65,18 @@ Requirements: Node.js 22.19 or later, Pi 0.84.2 or later, and either official
 DeepSeek API or OpenCode Go configuration. Pi 0.84.2 includes both provider
 routes.
 
+Install from npm for the current user:
+
+```bash
+pi install npm:pi-dsh-mimic
+```
+
+Install at project scope:
+
+```bash
+pi install -l npm:pi-dsh-mimic
+```
+
 Try the current checkout directly:
 
 ```bash
@@ -65,27 +85,10 @@ pi -e ./packages/pi-dsh-mimic \
   --model deepseek-v4-pro
 ```
 
-For OpenCode Go, configure its key through Pi's expected `OPENCODE_API_KEY`
-environment variable:
-
-```bash
-pi -e ./packages/pi-dsh-mimic \
-  --provider opencode-go \
-  --model deepseek-v4-pro
-```
-
-Install it for the current user:
-
-```bash
-pi install ./packages/pi-dsh-mimic
-```
-
-Use `pi install -l ./packages/pi-dsh-mimic` for project-local settings. The
-package has not been published to npm.
-The manifest already includes the `pi-package` keyword required by the
-[Pi Package Catalog](https://pi.dev/packages); the catalog can discover it only
-after publication to npm. The published install command will be
-`pi install npm:pi-dsh-mimic`.
+For OpenCode Go, configure Pi's expected `OPENCODE_API_KEY` environment variable
+and select the `opencode-go` provider. The package is published to npm with the
+`pi-package` keyword required by the
+[Pi Package Catalog](https://pi.dev/packages).
 
 Select V4 Pro before starting a new session. Switching to V4 Pro inside an
 existing conversation does not forge a new bootstrap.
