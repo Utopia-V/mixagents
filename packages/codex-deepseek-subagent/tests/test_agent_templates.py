@@ -123,7 +123,7 @@ for prompt_name in (
 ):
     legacy = (REPOSITORY_ROOT / "prompts" / prompt_name).read_text(encoding="utf-8")
     canonical_url = (
-        "https://raw.githubusercontent.com/Utopia-V/codex-deepseek-subagent/main/"
+        "https://raw.githubusercontent.com/Utopia-V/mixagents/main/"
         f"packages/codex-deepseek-subagent/prompts/{prompt_name}"
     )
     assert canonical_url in legacy

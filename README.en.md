@@ -46,6 +46,10 @@ Each component keeps its source, tests, and documentation inside its own
 for previously published raw URLs. The canonical Codex installation prompt is
 maintained by the Codex component.
 
+The GitHub repository was renamed from `Utopia-V/codex-deepseek-subagent` to
+`Utopia-V/mixagents`. The former name will remain unused so GitHub can preserve
+redirects for existing web, Git remote, and raw prompt URLs.
+
 See [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) for issue and contribution
 conventions. This is an independent community project and is not affiliated
 with or endorsed by OpenAI, DeepSeek, Pi, or OpenCode.

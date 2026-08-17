@@ -3,4 +3,4 @@
 This legacy path is retained for previously published links. Read and strictly
 follow the current diagnostic probe at:
 
-https://raw.githubusercontent.com/Utopia-V/codex-deepseek-subagent/main/packages/codex-deepseek-subagent/prompts/message-handoff-probe.md
+https://raw.githubusercontent.com/Utopia-V/mixagents/main/packages/codex-deepseek-subagent/prompts/message-handoff-probe.md

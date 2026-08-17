@@ -38,5 +38,8 @@ smoke test 和完整模型运行会按对应 provider 计费。
 每个组件的源码、测试和文档都位于自己的 `packages/` 子目录。根部 `prompts/` 只保留
 旧公开 raw URL 的转发入口，Codex 安装 prompt 的正式版本由其组件目录维护。
 
+GitHub 仓库已由 `Utopia-V/codex-deepseek-subagent` 改名为 `Utopia-V/mixagents`。旧名称
+会保持空置，以保留 GitHub 对既有网页、Git remote 和 raw prompt 链接的重定向。
+
 Issue 与贡献约定见 [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md)。本仓库为独立
 社区项目，与 OpenAI、DeepSeek、Pi 或 OpenCode 均无隶属或官方背书关系。

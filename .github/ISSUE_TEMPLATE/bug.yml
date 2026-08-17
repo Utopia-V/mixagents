@@ -11,7 +11,7 @@ body:
 
         感谢提供可复现证据。可以让 Agent 协助整理本表，但请由提交者核对实际发生的行为。
 
-        **不要提交 API key、认证 token、完整请求头、未脱敏配置、完整 ciphertext 或与问题无关的私有源码。** 如果凭据已经暴露，请先撤销或轮换，再阅读 [SECURITY.md](https://github.com/Utopia-V/codex-deepseek-subagent/blob/main/SECURITY.md)。
+        **不要提交 API key、认证 token、完整请求头、未脱敏配置、完整 ciphertext 或与问题无关的私有源码。** 如果凭据已经暴露，请先撤销或轮换，再阅读 [SECURITY.md](https://github.com/Utopia-V/mixagents/blob/main/SECURITY.md)。
 
   - type: input
     id: related-work

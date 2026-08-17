@@ -7,7 +7,7 @@ the current OpenAI main-agent model and provider.
 ```text
 Install the native DeepSeek V4 Flash custom subagent from the
 `packages/codex-deepseek-subagent` component in
-https://github.com/Utopia-V/codex-deepseek-subagent into my personal Codex
+https://github.com/Utopia-V/mixagents into my personal Codex
 configuration.
 
 Scope and invariants:

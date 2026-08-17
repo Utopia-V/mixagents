@@ -6,7 +6,7 @@ GitHub 的 `#N` 是本仓库唯一的事项编号；Issue 与 Pull Request 共�
 另建 `BUG-001`、`PR-003` 等人工流水号。
 
 - 仓库内正文写 `Issue #6`、`PR #3`，上下文清楚时可直接写 `#6`。
-- 跨仓库写 `Utopia-V/codex-deepseek-subagent#6` 或使用完整链接。
+- 跨仓库写 `Utopia-V/mixagents#6` 或使用完整链接。
 - 使用 `Fixes #N`、`Closes #N` 关闭已解决事项，使用 `Refs #N` 建立普通关联，使用
   `Supersedes #N` 表示替代关系。
 

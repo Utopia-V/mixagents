@@ -52,7 +52,7 @@ Hook matcher、脚本中的 role、skill、`AGENTS.md` 索引与 smoke 验收条
 
 Windows Desktop 路径已有 OpenAI parent → DeepSeek child → native callback 基线；
 当前 PowerShell 加固实现通过本地协议、并发与恢复测试，尚待更新后的 live smoke。
-[Issue #6](https://github.com/Utopia-V/codex-deepseek-subagent/issues/6) 的受控对照进一步
+[Issue #6](https://github.com/Utopia-V/mixagents/issues/6) 的受控对照进一步
 确认：Windows Desktop 继承 `env_key` 后 child/callback 成功，而同一 Agent 的
 User/HKCU command auth 在 sandbox identity 下不可用。
 macOS 的 Python/POSIX 路径已在 Codex `0.146.0` 上通过同一 callback 流程和 27 项
@@ -126,7 +126,7 @@ Windows 默认也使用 portable `env_key` 模板。设置用户变量后应完�
 Codex Desktop，使新进程真正继承 `DEEPSEEK_API_KEY`。
 
 可选的 `windows-live-env` 模板通过 command auth 读取 User/HKCU，但该 User scope
-属于命令的实际运行身份。[Issue #6](https://github.com/Utopia-V/codex-deepseek-subagent/issues/6)
+属于命令的实际运行身份。[Issue #6](https://github.com/Utopia-V/mixagents/issues/6)
 观测到 Codex Desktop 使用
 `CodexSandboxOffline`，因而看不到登录用户 HKCU；失败发生在 `SubagentStart` 之前，
 与 plaintext Hook 无关。下面的诊断只返回身份和布尔值，不输出 key：
@@ -166,7 +166,7 @@ Agent。需要图像理解时使用多模态 worker。
 collaboration 分支，但只在调用已经带有明确 plaintext marker 时命中；真实 OpenAI
 parent 仍可能先生成 ciphertext。因此包含该修复的版本仍可复现：
 
-- [本仓库 Issue #1](https://github.com/Utopia-V/codex-deepseek-subagent/issues/1)：
+- [本仓库 Issue #1](https://github.com/Utopia-V/mixagents/issues/1)：
   `fork_turns="1"` 继承根任务而不是父 Agent 后来形成的 child assignment，还可能
   使 child 误认自己是 root；
 - [openai/codex#34833](https://github.com/openai/codex/issues/34833)：V2 跨

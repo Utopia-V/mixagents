@@ -43,7 +43,7 @@ operating system without giving it the key itself. See [SECURITY.md](SECURITY.md
 
 ```text
 Read and follow
-https://raw.githubusercontent.com/Utopia-V/codex-deepseek-subagent/main/packages/codex-deepseek-subagent/prompts/install-with-codex.md
+https://raw.githubusercontent.com/Utopia-V/mixagents/main/packages/codex-deepseek-subagent/prompts/install-with-codex.md
 exactly to install its DeepSeek V4 Flash subagent. Preserve my current main
 model/provider and ChatGPT login, never ask for or print my API key, and stop
 after provider-free local validation; do not run the paid smoke test yet.
@@ -68,7 +68,7 @@ After installation:
 
 ```text
 Read and follow
-https://raw.githubusercontent.com/Utopia-V/codex-deepseek-subagent/main/packages/codex-deepseek-subagent/prompts/quick-smoke-test.md
+https://raw.githubusercontent.com/Utopia-V/mixagents/main/packages/codex-deepseek-subagent/prompts/quick-smoke-test.md
 exactly to test the installed v4_flash_worker. Do not use another provider, a
 direct API call, or another Codex CLI.
 ```
@@ -114,7 +114,7 @@ reviewing and trusting the Hook through `/hooks`. See
   install MCP:** stop. That is not this repository's route.
 
 If the problem remains, prefer the appropriate
-[structured Issue Form](https://github.com/Utopia-V/codex-deepseek-subagent/issues/new/choose).
+[structured Issue Form](https://github.com/Utopia-V/mixagents/issues/new/choose).
 If none fits, a Blank Issue is also available. Please provide the operating
 system, Codex version, failing boundary, and redacted output where possible.
 Never attach an API key, complete request headers, or an unredacted configuration

@@ -9,7 +9,7 @@ body:
       value: |
         本表只处理 `pi-dsh-mimic`。Codex custom-subagent 故障请使用 Codex bug 表单。
 
-        **不要提交 API key、认证 token、完整请求头、未脱敏 provider payload 或与问题无关的私有源码。** 如果凭据已经暴露，请先撤销或轮换，再阅读 [SECURITY.md](https://github.com/Utopia-V/codex-deepseek-subagent/blob/main/SECURITY.md)。
+        **不要提交 API key、认证 token、完整请求头、未脱敏 provider payload 或与问题无关的私有源码。** 如果凭据已经暴露，请先撤销或轮换，再阅读 [SECURITY.md](https://github.com/Utopia-V/mixagents/blob/main/SECURITY.md)。
 
   - type: input
     id: related-work

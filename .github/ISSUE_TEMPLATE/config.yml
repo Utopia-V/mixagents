@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: "安全与凭据 / Security"
-    url: "https://github.com/Utopia-V/codex-deepseek-subagent/blob/main/SECURITY.md"
+    url: "https://github.com/Utopia-V/mixagents/blob/main/SECURITY.md"
     about: "提交任何安全相关内容前先阅读；绝不要在公开 Issue 中发布凭据或秘密。"
   - name: "快速安装 / Quick start"
-    url: "https://github.com/Utopia-V/codex-deepseek-subagent"
+    url: "https://github.com/Utopia-V/mixagents"
     about: "先从仓库首页选择 Codex 或 Pi component，再阅读对应的安装与故障排查。"

@@ -18,12 +18,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Utopia-V/codex-deepseek-subagent.git",
+    "url": "git+https://github.com/Utopia-V/mixagents.git",
     "directory": "packages/pi-dsh-mimic"
   },
-  "homepage": "https://github.com/Utopia-V/codex-deepseek-subagent/tree/main/packages/pi-dsh-mimic#readme",
+  "homepage": "https://github.com/Utopia-V/mixagents/tree/main/packages/pi-dsh-mimic#readme",
   "bugs": {
-    "url": "https://github.com/Utopia-V/codex-deepseek-subagent/issues"
+    "url": "https://github.com/Utopia-V/mixagents/issues"
   },
   "files": [
     "src",

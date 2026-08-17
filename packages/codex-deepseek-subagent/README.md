@@ -37,7 +37,7 @@ key 本身交给它。安全细节见 [SECURITY.md](SECURITY.md)。
 
 ```text
 请读取并严格执行
-https://raw.githubusercontent.com/Utopia-V/codex-deepseek-subagent/main/packages/codex-deepseek-subagent/prompts/install-with-codex.md
+https://raw.githubusercontent.com/Utopia-V/mixagents/main/packages/codex-deepseek-subagent/prompts/install-with-codex.md
 为我安装其中的 DeepSeek V4 Flash subagent。保留当前主模型、provider 和 ChatGPT
 登录，不得索要或输出 API key；完成无付费调用的本地验证后停止，暂不运行 smoke
 test。
@@ -58,7 +58,7 @@ Codex 会自行下载、合并和验证需要的 Agent、skill、Hook 与两条 
 
 ```text
 请读取并严格执行
-https://raw.githubusercontent.com/Utopia-V/codex-deepseek-subagent/main/packages/codex-deepseek-subagent/prompts/quick-smoke-test.md
+https://raw.githubusercontent.com/Utopia-V/mixagents/main/packages/codex-deepseek-subagent/prompts/quick-smoke-test.md
 测试刚安装的 v4_flash_worker。不得使用替代 provider、直接 API 或另一个 Codex
 CLI。
 ```
@@ -94,7 +94,7 @@ CLI。
 - **安装 Agent 要你切换全局 provider、启动另一套 CLI 或安装 MCP：** 停止；那不是
   本仓库的安装路径。
 
-仍失败时，优先选择合适的[结构化 Issue Form](https://github.com/Utopia-V/codex-deepseek-subagent/issues/new/choose)；
+仍失败时，优先选择合适的[结构化 Issue Form](https://github.com/Utopia-V/mixagents/issues/new/choose)；
 现有分类都不适用时，也可以开 Blank Issue。请尽量提供操作系统、Codex 版本、失败
 边界和脱敏后的输出；不要附 API key、完整请求头或未脱敏配置。可以让 Agent 协助
 整理报告，但提交前应由人核对实际观测、推断和未运行的对照。可复现的证据有助于

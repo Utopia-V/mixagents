@@ -67,7 +67,7 @@ The Windows Desktop route has an OpenAI parent → DeepSeek child → native
 callback baseline; the hardened PowerShell implementation passes the local
 protocol, concurrency, and recovery tests and still needs a post-hardening
 live smoke.
-[Issue #6](https://github.com/Utopia-V/codex-deepseek-subagent/issues/6) adds a
+[Issue #6](https://github.com/Utopia-V/mixagents/issues/6) adds a
 controlled comparison: the Windows Desktop child/callback succeeded after
 inheriting `env_key`, while the same Agent's User/HKCU command auth was
 unavailable under a sandbox identity.
@@ -151,7 +151,7 @@ inherits `DEEPSEEK_API_KEY`.
 
 The optional `windows-live-env` template reads User/HKCU through command-backed
 authentication, but that User scope belongs to the command's actual process
-identity. [Issue #6](https://github.com/Utopia-V/codex-deepseek-subagent/issues/6)
+identity. [Issue #6](https://github.com/Utopia-V/mixagents/issues/6)
 observed Codex Desktop using `CodexSandboxOffline`, which could not see the
 logged-in user's HKCU. The failure occurred before
 `SubagentStart` and was unrelated to the plaintext Hook. This diagnostic emits
@@ -198,7 +198,7 @@ produced ciphertext, so releases containing that change can still reproduce the
 defect:
 
 - This repository's
-  [Issue #1](https://github.com/Utopia-V/codex-deepseek-subagent/issues/1):
+  [Issue #1](https://github.com/Utopia-V/mixagents/issues/1):
   `fork_turns="1"` inherits the root task rather than a later parent-derived
   child assignment and can make the child mistake itself for the root.
 - [openai/codex#34833](https://github.com/openai/codex/issues/34833): a V2
