@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use OMP Worker"
+  short_description: "Delegate tasks to the OMP (Oh My Pi) harness subagent"
+  default_prompt: "Use $use-omp-worker to delegate this task to the external OMP harness through the bridge Hook."
