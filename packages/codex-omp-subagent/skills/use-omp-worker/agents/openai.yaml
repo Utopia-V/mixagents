@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use OMP Worker"
+  short_description: "Delegate tasks to the OMP (Oh My Pi) harness subagent"
+  default_prompt: "Use $use-omp-worker to stage a UUID handoff, spawn the native omp_worker child, and let that child execute OMP through the V2 bridge."

@@ -1,0 +1,43 @@
+name: OMP Subagent Tests
+
+on:
+  pull_request:
+    paths:
+      - "packages/codex-omp-subagent/**"
+      - ".github/workflows/omp-subagent-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/codex-omp-subagent/**"
+      - ".github/workflows/omp-subagent-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.13"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile bridge
+        run: python -m py_compile packages/codex-omp-subagent/hooks/omp_bridge.py
+
+      - name: Run bridge tests
+        run: python -m unittest packages/codex-omp-subagent/tests/test_omp_bridge.py -v
+
+      - name: Validate agent template
+        run: python packages/codex-omp-subagent/tests/test_agent_templates.py
