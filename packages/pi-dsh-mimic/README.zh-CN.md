@@ -1,60 +1,40 @@
-[仓库索引](../../README.md) · [English](README.md) · [实验与设计](docs/advanced.zh-CN.md) · [Project2 证据账本](docs/project2-evidence.md)
+[仓库索引](../../README.md) · [English](README.md) ·
+[实验与设计](docs/advanced.zh-CN.md) · [Project2 证据账本](docs/project2-evidence.md)
 
 # pi-dsh-mimic
 
-`pi-dsh-mimic` 在 [Pi](https://github.com/earendil-works/pi) 的第一次模型请求中复现
-DeepSeek Harness Minimal 环境，让 DeepSeek V4 Pro 从已验证的高能力轨迹起步；第一次
-有效响应后，它立即回到 Pi 原生执行，恢复完整工具目录和用户安装的其他插件。
+`pi-dsh-mimic` 只修改 DeepSeek V4 Pro 在 [Pi](https://github.com/earendil-works/pi)
+中的第一次模型请求。真实任务先进入 DSH Minimal 的 persona 与 `bash`、
+`str_replace_editor` 两个工具；第一次有效响应后，后续请求恢复 Pi 原生格式和完整工具
+目录。
 
-它把两件事放进同一个 session：
-
-- DSH Minimal 首请求带来的 V4 Pro 工程能力；
-- Pi 成熟的工具、session 管理和插件生态。
-
-用户无需安装或运行完整 DSH harness，也不必长期停留在两个工具的 Minimal 环境中。
+它不需要安装完整 DSH harness，也不会增加额外模型轮次。
 
 ## 工作方式
 
-新建目标 session 的真实任务直接成为第一次模型请求：
+1. 新建目标 session 后，原始任务直接成为 Minimal 请求；
+2. 第一次成功的 assistant response 或实际 tool call 结束 bootstrap；
+3. 后续请求继续使用 Minimal persona，但 payload、工具排序和插件工具由 Pi 接管。
 
-1. 请求 #1 使用 Minimal persona，只暴露 DSH 风格的 `bash` 与
-   `str_replace_editor`；
-2. 第一个成功 assistant response 或 durable tool call 后，请求 #2 恢复 Pi 原生
-   provider payload 和当下完整工具目录；
-3. Minimal persona 在整个 session 保持，Pi 较长的自动 system prompt 不会作为额外
-   user message 重放。
+Provider error 或 aborted response 不消耗 bootstrap。阶段会写入一个小型 Pi custom entry，
+因此 session resume 后仍能恢复；如果进程在响应完成后、阶段写入前崩溃，durable
+assistant/tool 历史会把状态修正到执行阶段。
 
-扩展不增加身份 warm-up 或模型轮次，不复制原任务，不注入 `We need`，也不代理 API。
+## 实验结果
 
-## Project2 结果
+在一个冻结的 Project2 V4.1b 长程代码维护任务中，默认 Pi 得到 92；使用相同 one-shot
+流程的四次最终结果为 98、96、96、98。这个对照支持当前首请求设计，但不能直接外推到
+其他项目、模型版本或评测。
 
-Project2 V4.1b 是一个个人、自托管的长程代码维护评测。模型需要修复一个多模块 Python
-后端与 ESP32-S3 固件仓库，覆盖鉴权与 session 隐私、数据库迁移、跨模块功能、兼容性、
-Wi-Fi/MQTT/NVS/协议与 ESP-IDF 契约，以及交付说明。它不是通用 benchmark；这里的分数
-只用于比较同一冻结任务下的工程完成度。
-
-默认 Pi 得到 92。相同 one-shot 请求流程的四次最终结果为 **98、96、96、98**，均保持
-F3 16/16：
-
-| 运行 | Provider | 分数 | 关键分项 |
-| --- | --- | ---: | --- |
-| 默认 Pi baseline | DeepSeek 官方 API | 92 | F3 11，F6 10，F8 6 |
-| 早期 Minimal 模拟原型 | DeepSeek 官方 API | **98** | F3 16，F6 10，F8 7 |
-| 同流程复现实验 | DeepSeek 官方 API | 96 | F3 16，F6 10，F8 5 |
-| 首次 package 化实现 | DeepSeek 官方 API | 96 | F3 16，F6 8，F8 7 |
-| 当前独立实现 | OpenCode Go | **98** | F3 16，F6 10，F8 7 |
-
-这些结果表明：DSH Minimal 首请求可以在 Pi 中稳定建立高能力轨迹，而恢复 Pi 完整工具
-目录不会破坏它。实验过程、被否决的设计和每项实现选择的依据见
-[实验与设计](docs/advanced.zh-CN.md)；完整 evaluator IDs 与来源见
-[Project2 证据账本](docs/project2-evidence.md)。
+实验条件、负结果和实现取舍见[实验与设计](docs/advanced.zh-CN.md)，完整运行与 evaluator
+来源见 [Project2 证据账本](docs/project2-evidence.md)。
 
 ## 安装和使用
 
 要求：Node.js 22.19 或更新版本、Pi 0.84.2 或更新版本，并已配置 DeepSeek 官方 API 或
-OpenCode Go。Pi 0.84.2 已内置两条 provider 路径。
+OpenCode Go。
 
-从 npm 安装到当前用户：
+安装到当前用户：
 
 ```bash
 pi install npm:pi-dsh-mimic
@@ -74,43 +54,25 @@ pi -e ./packages/pi-dsh-mimic \
   --model deepseek-v4-pro
 ```
 
-使用 OpenCode Go 时，把 key 配置在 Pi 期望的 `OPENCODE_API_KEY` 环境变量中，并把
-provider 改为 `opencode-go`。Package 已发布到 npm，并带有 Pi gallery 要求的
-`pi-package` keyword，可由 [Pi Package Catalog](https://pi.dev/packages) 索引。
+OpenCode Go 使用 Pi 预期的 `OPENCODE_API_KEY` 环境变量，并将 provider 设为
+`opencode-go`。
 
-先选择 V4 Pro，再新建 session。在已有对话中途切换到 V4 Pro 不会伪造新的 bootstrap。
+请先选择 V4 Pro，再新建 session。已有对话中途切换到 V4 Pro 不会补造 bootstrap。
+扩展在目标 session 中注册 `str_replace_editor`；如果在同一个 session 里再切换到其他
+模型，这个工具可能继续留在当前工具目录。需要干净的非目标模型环境时，新建 session。
 
-## 请求生命周期
+## 请求变化
 
-| | Bootstrap 请求 | 执行阶段请求 |
+| | 第一次请求 | 后续请求 |
 | --- | --- | --- |
-| System persona | `You are a helpful software engineer assistant.` | 保持不变 |
-| User 历史 | 原始任务，包括 Pi 原生图片 | 不变 |
-| Provider 可见工具 | `bash`、`str_replace_editor` | Pi 当下完整目录，包括其他插件工具 |
-| Provider payload | DSH Minimal 形状；移除 Pi cache 字段 | Pi 原生编码与排序；cache 随 provider 配置 |
+| Persona | `You are a helpful software engineer assistant.` | 保持不变 |
+| User 历史 | 原始任务，包括 Pi 图片 | 保持不变 |
+| 工具 | `bash`、`str_replace_editor` | Pi 当前完整目录，包括其他插件工具 |
+| Payload | DSH Minimal 形状 | Pi 原生编码与排序 |
 
-扩展不调用 `setActiveTools`，也不覆盖 Pi 原生 `bash`、`read`、`edit` 或 `write`。目标
-新 session 武装时才注册一个可执行 `str_replace_editor`；请求 #2 起，其他 package
-提供的工具会自然出现在完整目录中。
-
-Provider error 或 aborted response 不消耗 bootstrap。阶段通过小型 Pi custom entry
-持久化，恢复时也能根据 durable assistant/tool 历史修正 crash-stale 状态。
-
-## 离线验证
-
-TypeScript typecheck 已通过，13 项自动化测试全部通过。其中 12 项覆盖 package 行为与
-manifest，1 项验证 session 统计工具。Package 行为测试覆盖：
-
-- 首请求原任务、persona、字段顺序、cache 移除和两工具 schema；
-- 请求 #2 恢复 Pi 原生 payload、完整目录和其他插件工具；
-- 图片、API error 重试、文本回答晋升、session resume 和 crash-stale 恢复；
-- 已有对话隔离、DeepSeek/OpenCode 双 provider 与非目标模型隔离；
-- editor 的 create、view、replace、insert 和歧义替换拒绝。
-
-OpenCode Go bash-first 与 editor-first 离线回环还通过 Pi 的真实 package loader 和 provider
-路径验证了两个请求，`realModelCalls=0`。请求 #2 携带真实工具结果，并恢复
-`read/bash/edit/write/str_replace_editor`。归一 user task 后，新请求 #1 与历史 98 分
-capture 在消息、字段顺序、schema、`strict:false` 和序列化结构上逐项相等。
+`str_replace_editor` 可以查看、创建和修改绝对路径文件，并继承 Pi 进程的文件系统权限。
+任务、上下文和工具结果会发送给所选 DeepSeek 或 OpenCode provider。扩展不读取或保存
+API key；完整边界见 [SECURITY.md](SECURITY.md)。
 
 ## 开发
 
@@ -121,15 +83,7 @@ npm run check
 npm run pack:check
 ```
 
-## 安全、费用与来源
-
-本 package 以 Pi 进程的文件系统权限运行；`str_replace_editor` 可以创建和修改文件。
-任务、上下文和工具结果会发送给所选 DeepSeek 或 OpenCode provider。package 不读取、
-保存、记录或传输 API key，也不增加额外模型轮次。完整说明见
-[SECURITY.md](SECURITY.md)。
-
-Minimal persona 与两项工具协议文本来自
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的公开 Minimal 协议；
-对应许可声明见 [LICENSE](LICENSE) 和 [NOTICE](NOTICE)。当前实现依据该公开协议、本项目
-捕获的请求和 Project2 实验完成，与 Pi、DeepSeek、OpenCode 或 OpenAI 均无隶属或官方
-背书关系。
+Minimal persona 与两项工具协议来自 DeepSeek Harness 的
+[公开 Minimal 协议](https://github.com/deepseek-ai/deepseek-harness)，许可见
+[LICENSE](LICENSE) 和 [NOTICE](NOTICE)。本项目与 Pi、DeepSeek、OpenCode 或 OpenAI
+均无隶属或官方背书关系。

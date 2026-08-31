@@ -1,6 +1,6 @@
 name: "Codex provider/model 适配与资格验证"
-description: "提议或记录 codex-deepseek-subagent 的新 provider/model 组合及其可验证边界。"
-title: "[Provider][Codex]: "
+description: "提议或记录新的 Codex provider/model 组合及其已验证范围。"
+title: ""
 labels:
   - enhancement
   - provider
@@ -8,16 +8,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        `codex-deepseek-subagent` 的现成实现绑定 DeepSeek 与 `v4_flash_worker`。新的组合不能仅凭 endpoint 可用或一次文本回复就宣称兼容；请区分提议、观察、推断和实际通过的资格项。Pi route 提案请使用 Improvement proposal。
+        这个表单用于支持范围声明，不是普通使用问题。尚未测试的提议也可以提交，请如实选择状态并把矩阵写成 not run。
 
-        **不要提交 API key、认证 token、完整请求头或未脱敏配置。**
-
-  - type: input
-    id: related-work
-    attributes:
-      label: "相关 Issue/PR / Related work"
-      description: "仓库内使用 #N；普通关联写 Refs #N，没有关联事项可留空。"
-      placeholder: "Refs #1"
+        **不要提交 API key、token、完整请求头或未脱敏配置。**
 
   - type: dropdown
     id: qualification-status
@@ -36,7 +29,6 @@ body:
     id: provider
     attributes:
       label: "Provider"
-      placeholder: "DeepSeek, OpenRouter, or another provider"
     validations:
       required: true
 
@@ -44,7 +36,7 @@ body:
     id: model
     attributes:
       label: "Model"
-      placeholder: "Exact model identifier"
+      description: "使用精确 model identifier。"
     validations:
       required: true
 
@@ -64,16 +56,15 @@ body:
     id: authentication
     attributes:
       label: "认证类型 / Authentication type"
-      description: "只描述 env_key、command-backed auth 或其他机制，不要填写凭据值。"
-      placeholder: "env_key"
+      description: "只写 env_key、command-backed auth 等机制，不要填写凭据值。"
     validations:
       required: true
 
   - type: textarea
-    id: purpose
+    id: role
     attributes:
-      label: "用途与选择理由 / Intended role"
-      description: "说明它适合承担什么 bounded work，以及相对现有实现带来什么真实差异。"
+      label: "用途 / Intended role"
+      description: "它适合承担什么工作，相对现有实现有什么实际差异？"
     validations:
       required: true
 
@@ -91,26 +82,18 @@ body:
       required: true
 
   - type: textarea
-    id: adaptation
-    attributes:
-      label: "适配范围 / Adaptation"
-      description: "列出改动过的 Agent、provider config、Hook role/matcher、skill、AGENTS.md 和 smoke oracle；未改项也请说明。"
-    validations:
-      required: true
-
-  - type: textarea
     id: matrix
     attributes:
       label: "资格矩阵 / Qualification matrix"
-      description: "每项填写 pass、fail 或 not run，并附最短证据。"
+      description: "每项写 pass、fail 或 not run；通过项附最短证据。"
       placeholder: |
-        Direct Codex model turn:
+        Direct model turn:
         Custom-agent discovery:
-        Native V2 message-only delivery:
-        One-shot plaintext Hook delivery:
+        Native V2 message delivery:
+        Plaintext Hook delivery:
         Required local tool calls:
-        Native result callback:
-        Cancellation/stop behavior:
+        Native callback:
+        Cancellation behavior:
         Parent model/provider unchanged:
     validations:
       required: true
@@ -119,7 +102,7 @@ body:
     id: evidence
     attributes:
       label: "复现与证据 / Reproduction and evidence"
-      description: "提供可重复的步骤、随机 marker、脱敏结果和必要的上游链接。不要只贴 Agent 的结论。"
+      description: "提供可重复步骤、随机 marker、脱敏结果和必要上游链接。提议阶段可以写 not run。"
     validations:
       required: true
 
@@ -127,24 +110,20 @@ body:
     id: boundaries
     attributes:
       label: "数据、安全与已知限制 / Boundaries"
-      description: "说明发送给该 provider 的数据、认证边界、未支持能力、费用和仍未验证的语义。"
+      description: "说明发送给 provider 的数据、认证边界、费用和未支持能力。"
     validations:
       required: true
 
   - type: textarea
-    id: contribution
+    id: adaptation
     attributes:
-      label: "可贡献内容 / Contribution"
-      description: "可选。说明是否愿意提交模板、协议测试、平台证据或文档修正。"
+      label: "实现或适配说明 / Adaptation notes"
+      description: "可选。列出已修改或计划修改的 Agent、provider config、Hook、Skill 与 smoke。"
 
   - type: checkboxes
-    id: qualification-integrity
+    id: sensitive-data
     attributes:
-      label: "提交确认 / Submission checks"
+      label: "敏感信息 / Sensitive data"
       options:
-        - label: "我没有把 endpoint 可达、一次文本回复或模型自述当作完整资格验证。"
-          required: true
         - label: "我没有提交 API key、token、完整请求头、未脱敏配置或其他秘密。"
-          required: true
-        - label: "如果本 Issue 由 Agent 起草，我已经核对证据，并明确标出了 not run、推断和未知项。"
           required: true

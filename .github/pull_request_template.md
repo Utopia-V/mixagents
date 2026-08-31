@@ -1,22 +1,9 @@
-## 变更 / Change
+## 改了什么 / What changed
 
-<!-- 说明可观察行为发生了什么变化。 / Describe the observable change. -->
+<!-- 说明用户或系统能观察到的变化，以及为什么。 / Describe the observable change and why. -->
 
-Component: <!-- codex-deepseek-subagent / pi-dsh-mimic / repository -->
+## 怎么确认 / What I checked
 
-## 关联事项 / Related work
+<!-- 写实际做过的检查；不需要额外验证时可以留空。 / List checks actually run; leave blank when no extra validation is needed. -->
 
-<!-- 使用 Fixes/Closes/Refs/Supersedes #N；没有关联事项时写 None。 -->
-Refs #N
-
-## 证据与边界 / Evidence and boundaries
-
-- 验证 / Validation:
-- 未验证 / Not verified:
-- 有意保持不变 / Intentionally unchanged:
-
-## 提交确认 / Submission checks
-
-- [ ] PR 标题使用 `feat:`、`fix:`、`docs:`、`test:`、`refactor:` 或 `chore:`。
-- [ ] 我已核对实际改动和证据，并明确标出未运行项、推断与未知项。
-- [ ] 本 PR 不含 API key、token、完整请求头、未脱敏配置或其他秘密。
+<!-- 有关联事项时写 Fixes/Refs #N 或完整链接。 / Link an owning issue when one exists. -->

@@ -1,29 +1,33 @@
 # Contributing
 
-## Issue 与 PR 编号
+欢迎提交 Issue 或 Pull Request。小修不需要先开 Issue，尚未完成的实现也可以先以 Draft PR
+交流。维护者会协助补标签和整理合并标题，贡献者不需要先学习仓库内部的分类习惯。
 
-GitHub 的 `#N` 是本仓库唯一的事项编号；Issue 与 Pull Request 共用同一序列。不要
-另建 `BUG-001`、`PR-003` 等人工流水号。
+## Pull Request
 
-- 仓库内正文写 `Issue #6`、`PR #3`，上下文清楚时可直接写 `#6`。
-- 跨仓库写 `Utopia-V/mixagents#6` 或使用完整链接。
-- 使用 `Fixes #N`、`Closes #N` 关闭已解决事项，使用 `Refs #N` 建立普通关联，使用
-  `Supersedes #N` 表示替代关系。
+标题直接说明改了什么。正文回答两件事：用户或系统能观察到什么变化，以及你实际做过哪些
+检查。存在关联 Issue 时可以用 `Fixes #N`、`Refs #N` 或完整链接；没有时不必补一个。
 
-Issue 标题使用表单生成的 `[Bug][Codex]`、`[Bug][Pi]`、`[Proposal]`、
-`[Provider][Codex]` 或 `[Question]` 前缀；PR 标题使用 `feat:`、`fix:`、
-`docs:`、`test:`、`refactor:` 或 `chore:`。标题不重复写编号。
+只声明真正验证过的范围。Linux 上的结果不能写成跨平台完成，mock 结果也不能代替真实
+provider 或 native child。纯文档、重命名等改动如果由 diff 和链接检查已经说明完整，
+不需要为了填模板增加测试。
 
-## 提交内容
+## 设计取舍
 
-请选择最接近的 [Issue Form](ISSUE_TEMPLATE)，并标明受影响的
-`codex-deepseek-subagent`、`pi-dsh-mimic` 或仓库级文档。现有分类都不适用时可以提交
-Blank Issue。PR 应说明可观察变化、关联事项、验证结果、明确未验证的范围和有意保持
-不变的边界。
+优先使用 Codex、Pi 和现有组件已经提供的生命周期、权限、消息、工具与 Git 状态。新增
+持久状态、任务队列、日志归档或兼容层时，请说明现有能力为什么不够、谁负责清理，以及
+这个机制在什么条件下可以删除。
 
-标签用于描述类型、平台、领域和证据状态，不替代 `#N`。提交者不需要先掌握完整标签
-体系；维护者会在 triage 时补充。
+临时 workaround 应关联它依赖的上游问题，并保留明确的退役条件。涉及第三方 provider、
+明文任务、文件写入或付费调用时，把用户需要知道的数据、权限和费用边界写进对应组件的
+README 或 SECURITY owner。
 
-不得提交 API key、token、完整请求头、未脱敏配置或无关私有材料。如果内容由 Agent
-协助起草，请在提交前核对实际观察，并把推断、未运行项和未知项明确标出。安全边界见
-[SECURITY.md](../SECURITY.md)。
+## Issue
+
+选择最接近的 [Issue Form](ISSUE_TEMPLATE)，也可以直接提交 Blank Issue。表单用于提示
+常见信息，不要求报告者在提交前完成根因分析；不知道的内容可以留空，维护者会继续追问。
+
+## 安全
+
+不要提交 API key、token、完整请求头、未脱敏配置或无关私有材料。凭据已经暴露时，先在
+provider 侧撤销或轮换，再按 [SECURITY.md](../SECURITY.md) 提供最短的脱敏信息。

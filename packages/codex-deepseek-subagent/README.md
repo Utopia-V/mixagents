@@ -1,39 +1,33 @@
-[仓库索引](../../README.md) · [English](README.en.md) · [高级说明](docs/advanced.md)
+[仓库索引](../../README.md) · [English](README.en.md) ·
+[高级说明](docs/advanced.md) · [安全说明](SECURITY.md)
 
 # Codex DeepSeek Subagent
 
-让 Codex 主任务继续使用 GPT / OpenAI，同时把便宜、快速的
-`deepseek-v4-flash` 当作原生 subagent 做搜索、枚举、日志和大量文本整理。
+让 Codex 主任务继续使用 OpenAI，把边界明确、以文本为主的大批量阅读、搜索、日志和整理
+任务交给 `deepseek-v4-flash` 子代理。是否委派仍由 Codex Parent 决定；安装不会更换主
+任务的 model、provider 或 ChatGPT 登录。
 
-DeepSeek 是本仓库提供的开箱即用实现，不是这种组合的能力上限。凡是能被 Codex
-通过受支持 API 调用、并满足目标任务能力与数据边界的 provider/model，都可以按
-同一模式适配成独立 subagent；当前安装器仍只安装经过验证的 DeepSeek 配置。具体
-条件见 [适配其他 provider/model](docs/advanced.md#适配其他-providermodel)。
+当前 Codex 在 OpenAI Parent 与第三方 provider child 之间仍可能交付不可读的加密任务。
+本组件用一次性 plaintext `SubagentStart` Hook 传递 assignment；上游恢复可靠的
+provider-neutral 传输后，这层 workaround 可以删除。技术背景见
+[高级说明](docs/advanced.md#为什么-v2-需要-hook)。
 
-这套安装不需要 CC Switch、MCP、插件或另一个 Codex CLI，也不会把主 Agent
-切到 DeepSeek。只做下面三步。
+## 安装
 
-## 三步安装
+### 1. 配置 DeepSeek API key
 
-### 1. 设置 DeepSeek API key
+在 DeepSeek 创建 key，并以 `DEEPSEEK_API_KEY` 环境变量提供给启动 Codex 的进程。不要
+把 key 发进聊天、Issue、截图或仓库。
 
-在 DeepSeek 创建 key，然后把它保存为环境变量 `DEEPSEEK_API_KEY`。不要把 key
-发进 Codex 聊天、Issue、截图或仓库。
+- Windows：在用户环境变量中设置，然后完整退出并重新启动 Codex Desktop。
+- macOS / Linux：在启动 Codex 的 shell 或 secret manager 中设置。
 
-- Windows：在系统设置中搜索“环境变量”，在“用户变量”中新建
-  `DEEPSEEK_API_KEY`，然后完全退出并重新启动 Codex Desktop。不要依赖已经运行的
-  Desktop 自动读取后来设置的变量。
-- macOS / Linux：在启动 Codex 的 shell 或 secret manager 中设置
-  `DEEPSEEK_API_KEY`，再启动 Codex。
+macOS 另有可选 Keychain 模板；默认仍使用环境变量。详见
+[macOS Keychain 认证](docs/advanced.md#macos-keychain-可选认证)。
 
-macOS 也提供独立的 Keychain 认证模板，适合不从 shell 继承环境变量的启动方式。
-默认安装仍使用上面的环境变量；只有你明确选择时才使用 Keychain，已有配置不会自动
-迁移。设置与安全探针见 [macOS Keychain 可选认证](docs/advanced.md#macos-keychain-可选认证)。
+### 2. 让 Codex 安装组件
 
-不知道怎么设置时，可以让 Codex 只解释你当前系统的环境变量设置方法，但不要把
-key 本身交给它。安全细节见 [SECURITY.md](SECURITY.md)。
-
-### 2. 把这一段复制给 Codex
+把下面内容复制给 Codex：
 
 ```text
 请读取并严格执行
@@ -43,18 +37,15 @@ https://raw.githubusercontent.com/Utopia-V/mixagents/main/packages/codex-deepsee
 test。
 ```
 
-Codex 会自行下载、合并和验证需要的 Agent、skill、Hook 与两条 `AGENTS.md`
-索引。安装过程不会调用 DeepSeek，也不会改掉主模型/provider。
+安装会写入个人 Codex 配置中的 Agent、Skill、Hook 脚本和一条路由索引，不会调用
+DeepSeek。
 
-### 3. 信任 Hook，然后测试
+### 3. 信任 Hook 并测试
 
-安装完成后：
-
-1. 在 Codex 输入 `/hooks`，检查它只匹配 `v4_flash_worker`，命令指向刚安装的
+1. 在 Codex 输入 `/hooks`，确认 Hook 只匹配 `v4_flash_worker`，命令指向刚安装的
    `plaintext-handoff` 脚本，然后选择信任。
-2. **新开一个 Codex 任务。** 已经运行的旧任务不保证重新加载新 Hook。Windows
-   用户若刚设置或修改了 API key，应先完整重启 Codex；其他情况下通常不必重启应用。
-3. 把下面一句复制到新任务：
+2. 新开一个 Codex 任务。Windows 如果刚设置或修改 key，先完整重启 Codex。
+3. 在新任务中发送：
 
 ```text
 请读取并严格执行
@@ -63,62 +54,28 @@ https://raw.githubusercontent.com/Utopia-V/mixagents/main/packages/codex-deepsee
 CLI。
 ```
 
-这个 quick smoke 不要求 clone 仓库，会产生一次很小的 DeepSeek API 调用。
+quick smoke 会发起一次很小的 DeepSeek 请求并产生相应费用。
 
-## 怎样算成功
+## 成功时会看到什么
 
-测试结果应同时满足：
+- Codex 创建一个独立的 `v4_flash_worker` child task；
+- child 返回本次随机 marker 和 `arithmetic=323`；
+- pending handoff 被消费；
+- Parent 仍使用原来的 OpenAI model/provider。
 
-- 出现一个独立的原生 child task，agent type 是 `v4_flash_worker`；
-- child 返回父 Agent 随机生成的 marker，并得到 `arithmetic=323`；
-- 一次性 pending handoff 已被消费；
-- 主任务仍使用原来的 OpenAI 模型/provider；
-- 没有另起 CLI、直连 API 或换模型冒充成功。
+日常使用时，Parent 只在任务明确适合 Flash 时读取 `$use-v4-flash-worker`。assignment
+会短暂以明文写入本地用户状态，随后发送给 DeepSeek；默认 child 为只读，但当前 Parent
+权限仍可能影响实际 sandbox。不要委派未获授权的私有源码、秘密、个人数据或受监管数据。
 
-满足这些条件后即可正常使用。父 Agent 会在适合的任务上按需加载
-`$use-v4-flash-worker`，自行决定是否委派；安装并不强迫每个任务都使用 Flash。
+## 常见问题
 
-安装只会在个人 Codex 配置中新增或更新独立 Agent、skill、Hook 和两条路由索引；
-不会向顶层配置添加 DeepSeek provider，不会切换主任务模型。唯一需要你手动决定的
-步骤是通过 `/hooks` 审查并信任 Hook。完整文件边界见 [高级说明](docs/advanced.md)。
+- 找不到 `v4_flash_worker`：先新开任务，仍看不到再重启 Codex。
+- child 没收到任务：检查 `/hooks` 是否已信任，并确认当前任务是在安装后新建的。
+- 认证缺失：只检查环境变量或 Keychain item 是否存在，不要输出 key。
+- Windows 在 Hook 前报告 Agent 不可用：确认 Codex 进程继承了环境变量并完整重启。
 
-## 如果没有成功
+更多安装边界、V1 兼容路径、Windows 认证和上游缺陷见
+[高级说明](docs/advanced.md)。协议诊断与贡献者 smoke 位于 [prompts/](prompts/)。
 
-- **看不到 `v4_flash_worker`：** 先新开任务；仍看不到再重启 Codex 一次。
-- **child 说没有收到任务：** 通常是 Hook 未信任、当前任务早于 Hook 安装，或者
-  Hook 没有加载。检查 `/hooks` 后再新开任务，不要改用 inherited turns。
-- **提示缺少认证：** 只检查所选环境变量或 Keychain item 是否存在，不要把 key
-  贴进聊天。
-- **Windows 在 Hook 运行前就提示 Agent 不可用：** 确认 Codex 进程继承了环境变量并
-  完整重启；User/HKCU command auth 可能读到 sandbox identity，见[高级说明](docs/advanced.md#windows-认证边界)。
-- **安装 Agent 要你切换全局 provider、启动另一套 CLI 或安装 MCP：** 停止；那不是
-  本仓库的安装路径。
-
-仍失败时，优先选择合适的[结构化 Issue Form](https://github.com/Utopia-V/mixagents/issues/new/choose)；
-现有分类都不适用时，也可以开 Blank Issue。请尽量提供操作系统、Codex 版本、失败
-边界和脱敏后的输出；不要附 API key、完整请求头或未脱敏配置。可以让 Agent 协助
-整理报告，但提交前应由人核对实际观测、推断和未运行的对照。可复现的证据有助于
-区分配置、Agent discovery、Hook、provider request 和 callback 等失败边界，也能
-帮助后来的人。
-
-## 高级用户与贡献者
-
-- 实现原理、V1 workaround、当前 V2 上游缺陷、配置边界和迁移条件：
-  [高级说明](docs/advanced.md)
-- 完整 Agent 安装合同：[prompts/install-with-codex.md](prompts/install-with-codex.md)
-- 带本地工具和 SHA-256 的贡献者 smoke：[prompts/smoke-test.md](prompts/smoke-test.md)
-- 只诊断原始 V2 message-only 的探针：
-  [prompts/message-handoff-probe.md](prompts/message-handoff-probe.md)
-- 凭据、plaintext 本地状态和 DeepSeek 数据边界：[SECURITY.md](SECURITY.md)
-
-Windows Desktop 路径已有 live smoke；当前 PowerShell 加固实现通过本地协议、并发
-与恢复测试，尚待一次更新后的 live smoke。macOS 的 Python/POSIX 路径已在 Codex
-`0.146.0` 上通过原生 callback smoke 和 27 项协议测试；Linux 使用同一 POSIX 实现。
-
-## 费用与关联声明
-
-DeepSeek API 费用独立于 ChatGPT/OpenAI 订阅。安装不产生 DeepSeek 调用；quick
-smoke 和之后的 Flash child 会按 DeepSeek 账户计费。
-
-[MIT](LICENSE)。本组件是独立配置示例，与 OpenAI 或 DeepSeek 不存在隶属或
-官方背书关系。
+DeepSeek API 费用独立于 ChatGPT/OpenAI 订阅。组件采用 [MIT](LICENSE) 许可证，与
+OpenAI 或 DeepSeek 无隶属或官方背书关系。

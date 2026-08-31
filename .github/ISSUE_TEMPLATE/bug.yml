@@ -1,107 +1,43 @@
 name: "Codex subagent 运行或安装故障"
-description: "报告 Codex component 的安装、Agent discovery、Hook、provider、tool call 或 callback 故障。"
-title: "[Bug][Codex]: "
+description: "报告 codex-deepseek-subagent 的安装、Hook、provider 或 child 故障。"
+title: ""
 labels:
   - bug
 body:
   - type: markdown
     attributes:
       value: |
-        本表只处理 `codex-deepseek-subagent` component。Pi extension 故障请使用 Pi bug 表单。
+        请写下你实际看到的行为。不需要先判断根因，未知信息可以留空。
 
-        感谢提供可复现证据。可以让 Agent 协助整理本表，但请由提交者核对实际发生的行为。
-
-        **不要提交 API key、认证 token、完整请求头、未脱敏配置、完整 ciphertext 或与问题无关的私有源码。** 如果凭据已经暴露，请先撤销或轮换，再阅读 [SECURITY.md](https://github.com/Utopia-V/mixagents/blob/main/SECURITY.md)。
-
-  - type: input
-    id: related-work
-    attributes:
-      label: "相关 Issue/PR / Related work"
-      description: "仓库内使用 #N；普通关联写 Refs #N，没有关联事项可留空。"
-      placeholder: "Refs #1"
-
-  - type: dropdown
-    id: failure-boundary
-    attributes:
-      label: "失败边界 / Failure boundary"
-      description: "选择目前最窄、最早能够确定失败的位置；不要把后续症状当作根因。"
-      options:
-        - "安装或源码获取 / Installation or source fetch"
-        - "Agent discovery"
-        - "Hook 可见性或信任 / Hook visibility or trust"
-        - "Assignment stage"
-        - "Native child spawn"
-        - "认证 / Authentication"
-        - "Provider request or response"
-        - "Child tool call"
-        - "Native callback or wait"
-        - "无法确定 / Unknown"
-    validations:
-      required: true
-
-  - type: dropdown
-    id: surface
-    attributes:
-      label: "Codex 使用界面 / Surface"
-      options:
-        - "Codex Desktop"
-        - "Codex CLI (interactive)"
-        - "Codex IDE extension"
-        - "Other"
-    validations:
-      required: true
-
-  - type: dropdown
-    id: operating-system
-    attributes:
-      label: "操作系统 / Operating system"
-      options:
-        - "Windows"
-        - "macOS"
-        - "Linux"
-        - "WSL"
-        - "Other"
-    validations:
-      required: true
-
-  - type: input
-    id: codex-versions
-    attributes:
-      label: "Codex 版本 / Version"
-      description: "填写 Desktop 版本以及可见的 bundled/standalone CLI 版本；未知项写 unknown。"
-      placeholder: "Desktop 26.x; CLI 0.x"
-    validations:
-      required: true
-
-  - type: textarea
-    id: topology
-    attributes:
-      label: "调用拓扑 / Invocation topology"
-      description: "只填写名称和配置类型，不要填写任何凭据值。"
-      placeholder: |
-        Parent model/provider:
-        Child agent name:
-        Child model/provider:
-        wire_api:
-        Multi-agent version:
-        fork_turns:
-        Hook installed/trusted/used:
-    validations:
-      required: true
+        **不要提交 API key、token、完整请求头、未脱敏配置、完整 ciphertext 或无关私有源码。**
 
   - type: textarea
     id: summary
     attributes:
-      label: "问题摘要 / Summary"
-      description: "用一小段话说明哪个可观察行为失败。不要先给未经验证的根因结论。"
+      label: "发生了什么 / What happened"
+      description: "说明失败的行为、实际结果，以及你原本期望发生什么。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: "环境 / Environment"
+      description: "填写你知道的版本和调用方式；不知道的项目可以删掉。不要填写凭据值。"
+      placeholder: |
+        Codex surface and version:
+        Operating system:
+        Parent model/provider:
+        Child model/provider:
+        Hook installed/trusted:
     validations:
       required: true
 
   - type: textarea
     id: reproduction
     attributes:
-      label: "最小复现 / Minimal reproduction"
-      description: "从新的 Codex task 开始，列出能够稳定复现问题的最少步骤。"
+      label: "怎样复现 / Reproduction"
+      description: "列出能够复现问题的最少步骤；如果不能稳定复现，说明当时做了什么。"
       placeholder: |
         1. ...
         2. ...
@@ -110,50 +46,16 @@ body:
       required: true
 
   - type: textarea
-    id: observed
+    id: evidence
     attributes:
-      label: "实际结果 / Observed result"
-      description: "记录界面、child task、退出码或脱敏日志中真实出现的结果。"
-    validations:
-      required: true
-
-  - type: textarea
-    id: expected
-    attributes:
-      label: "预期结果 / Expected result"
-      description: "说明 README、测试合同或 Codex 行为应当产生什么结果。"
-    validations:
-      required: true
-
-  - type: textarea
-    id: controls
-    attributes:
-      label: "已运行的对照 / Controls"
-      description: "逐项填写结果；未运行请明确写 not run，不要让 Agent 猜测。"
-      placeholder: |
-        Repository quick smoke:
-        Local Hook protocol test:
-        Direct provider/model turn:
-        Same-provider child control:
-        New task after Hook trust:
-    validations:
-      required: true
-
-  - type: textarea
-    id: logs
-    attributes:
-      label: "脱敏日志 / Redacted logs"
-      description: "可选。只保留定位上述失败边界所需的最短片段。"
+      label: "补充证据 / Additional evidence"
+      description: "可选。填写已运行的对照、退出码或最短脱敏日志。"
       render: shell
 
   - type: checkboxes
-    id: report-integrity
+    id: sensitive-data
     attributes:
-      label: "提交确认 / Submission checks"
+      label: "敏感信息 / Sensitive data"
       options:
-        - label: "我搜索过现有 Issue，并阅读了当前 README 的故障排查。"
-          required: true
         - label: "我没有提交 API key、token、完整请求头、未脱敏配置或其他秘密。"
-          required: true
-        - label: "如果本 Issue 由 Agent 起草，我已经核对实际观测，并将推断和未运行的对照明确标出。"
           required: true

@@ -1,25 +1,20 @@
 ---
 name: use-v4-flash-worker
-description: Use the DeepSeek-backed v4_flash_worker through the installed one-shot plaintext SubagentStart Hook. Use whenever Codex considers spawning, continuing, or troubleshooting this worker; it governs task suitability, plaintext staging, native fork_turns=none spawning and return, one-shot state recovery, and the configured provider/DeepSeek data boundary.
+description: Use before spawning, continuing, or troubleshooting the opt-in DeepSeek-backed v4_flash_worker; contains its plaintext-Hook handoff, recovery, and data-boundary contract.
 ---
 
 # Use V4 Flash Worker
 
-## Choose the worker
+## Use it only when it earns the context switch
 
-- Use it for bounded, preferably read-only text, code, log, search, extraction,
-  enumeration, or high-volume reading work whose raw material is much larger
-  than the useful conclusion.
-- Keep tightly coupled reasoning, consequential decisions, verification, and
-  final integration in the parent. Use a multimodal worker when the task needs
-  image understanding.
-- Do not send secrets, private source, personal data, or regulated material
-  unless the user has authorized the configured external provider and
-  `deepseek-v4-flash` model data boundary.
-- Keep the parent and its provider independent from the child transport. Do not
-  switch the parent provider or model to delegate.
-- Keep provider credentials in the provider environment. Never put credentials
-  in the staged assignment, spawn message, or returned content.
+- Select Flash only when the user requests it or its provider-declared 1M
+  context changes whether a bounded, preferably read-only reading task is
+  feasible. It is not the routine factual scout.
+- Keep coupled reasoning, consequential decisions, verification, and final
+  integration in the parent. Use a multimodal worker for images.
+- The assignment crosses the configured DeepSeek data boundary. Sensitive
+  material requires user authorization; credentials remain in the provider
+  environment. Delegation never changes the parent's model or provider.
 
 ## Deliver one self-contained job
 
