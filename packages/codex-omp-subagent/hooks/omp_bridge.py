@@ -1,35 +1,42 @@
 #!/usr/bin/env python3
 """
-OMP (Oh My Pi) Subagent Bridge for Codex.
-Handles one-shot task staging and SubagentStart hook execution by invoking OMP in the background.
+OMP (Oh My Pi) subagent bridge for Codex.
+
+V2 keeps task staging separate from execution:
+- `stage` writes an isolated UUID handoff envelope.
+- `run` is executed by the native Codex `omp_worker` child inside its sandbox.
+- OMP raw JSONL/stderr stay on disk while only a bounded structured result is
+  returned to the child.
 """
 
 from __future__ import annotations
 
 import argparse
-import contextlib
 import datetime
 import json
 import os
 import pathlib
-import re
 import shlex
 import subprocess
 import sys
-from typing import Optional, Tuple
+import tempfile
+from typing import Any, Optional
 import uuid
 
-if os.name == "posix":
-    import fcntl
-else:
-    fcntl = None
-
-
 AGENT_TYPE = "omp_worker"
+SCHEMA = 2
+DEFAULT_TIMEOUT = 600
+MAX_SUMMARY_CHARS = 12000
+MAX_STDERR_CHARS = 4000
 
 
 class EnvelopeError(ValueError):
     pass
+
+
+def fail(message: str, code: int) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(code)
 
 
 def state_root(value: Optional[str] = None) -> pathlib.Path:
@@ -38,65 +45,50 @@ def state_root(value: Optional[str] = None) -> pathlib.Path:
     override = os.environ.get("CODEX_OMP_HANDOFF_DIR")
     if override:
         return pathlib.Path(override).expanduser().resolve()
-    if os.name == "nt":
-        local_app_data = os.environ.get("LOCALAPPDATA")
-        if local_app_data:
-            return pathlib.Path(local_app_data) / "Codex" / "omp-subagent-handoff"
-    return (
-        pathlib.Path(os.environ.get("XDG_STATE_HOME", pathlib.Path.home() / ".local" / "state"))
-        / "codex"
-        / "omp-subagent-handoff"
-    )
+
+    # Codex's :workspace permission profile includes system temporary
+    # directories as writable roots. A home-state default such as
+    # ~/.local/state is not guaranteed writable from a workspace-scoped parent
+    # or child session, so keep the bridge's ephemeral coordination state in
+    # the system temp area by default. The directory itself is user-private on
+    # POSIX and CODEX_OMP_HANDOFF_DIR remains available for explicit persistent
+    # storage when the caller has granted that path.
+    temp_root = pathlib.Path(tempfile.gettempdir()).resolve()
+    if os.name == "posix" and hasattr(os, "getuid"):
+        return temp_root / f"codex-omp-subagent-{os.getuid()}"
+    return temp_root / "codex-omp-subagent"
 
 
-def fail(message: str, code: int) -> None:
-    print(message, file=sys.stderr)
-    raise SystemExit(code)
-
-
-def transport_failure(action: str, error: OSError) -> None:
-    fail(f"OMP bridge transport failure while {action}: {error}", 12)
-
-
-@contextlib.contextmanager
-def state_lock(root: pathlib.Path):
+def ensure_layout(root: pathlib.Path) -> None:
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if fcntl is not None:
-        descriptor = None
+    for name in ("pending", "running", "completed", "failed", "jobs"):
+        directory = root / name
+        directory.mkdir(mode=0o700, exist_ok=True)
         try:
-            root.chmod(0o700)
-            descriptor = os.open(root / f".{AGENT_TYPE}.lock", os.O_RDWR | os.O_CREAT, 0o600)
-            os.fchmod(descriptor, 0o600)
-            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            if descriptor is not None:
-                os.close(descriptor)
-            fail("An OMP handoff state transition is already in progress.", 13)
-        except OSError as error:
-            if descriptor is not None:
-                os.close(descriptor)
-            transport_failure("acquiring the state lock", error)
+            directory.chmod(0o700)
+        except OSError:
+            pass
+
+
+def atomic_write_json(path: pathlib.Path, value: dict[str, Any]) -> None:
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as stream:
+            json.dump(value, stream, ensure_ascii=False, separators=(",", ":"))
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
         try:
-            yield
-        finally:
-            if descriptor is not None:
-                os.close(descriptor)
-    else:
-        lock_file = root / f".{AGENT_TYPE}.lock"
+            path.chmod(0o600)
+        except OSError:
+            pass
+    finally:
         try:
-            descriptor = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_RDWR)
-        except FileExistsError:
-            fail("An OMP handoff state transition is already in progress (Windows lock present).", 13)
-        except OSError as error:
-            transport_failure("acquiring the Windows state lock", error)
-        try:
-            yield
-        finally:
-            try:
-                os.close(descriptor)
-                lock_file.unlink(missing_ok=True)
-            except OSError:
-                pass
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def parse_timestamp(value: object, field_name: str) -> datetime.datetime:
@@ -111,152 +103,107 @@ def parse_timestamp(value: object, field_name: str) -> datetime.datetime:
     return timestamp
 
 
-def validate_envelope(value: object) -> Tuple[dict, datetime.datetime]:
+def normalize_handoff_id(value: str) -> str:
+    try:
+        return str(uuid.UUID(value))
+    except (ValueError, AttributeError) as error:
+        raise EnvelopeError("handoff id must be a valid UUID") from error
+
+
+def validate_envelope(value: object) -> tuple[dict[str, Any], datetime.datetime]:
     if not isinstance(value, dict):
         raise EnvelopeError("the handoff envelope must be a JSON object")
-    if type(value.get("schema")) is not int or value["schema"] != 1:
+    if type(value.get("schema")) is not int or value["schema"] != SCHEMA:
         raise EnvelopeError("the handoff envelope has an invalid schema")
     if value.get("agent_type") != AGENT_TYPE:
         raise EnvelopeError("the handoff envelope has an invalid agent type")
-    if not isinstance(value.get("handoff_id"), str) or not value["handoff_id"]:
+    handoff_id = value.get("handoff_id")
+    if not isinstance(handoff_id, str):
         raise EnvelopeError("the handoff envelope has an invalid handoff id")
-    try:
-        uuid.UUID(value["handoff_id"])
-    except ValueError as error:
-        raise EnvelopeError("the handoff envelope has an invalid handoff id") from error
-    if not isinstance(value.get("assignment"), str):
-        raise EnvelopeError("the handoff envelope assignment must be a string")
-    if not value["assignment"].strip():
+    normalize_handoff_id(handoff_id)
+    assignment = value.get("assignment")
+    if not isinstance(assignment, str) or not assignment.strip():
         raise EnvelopeError("the handoff envelope assignment must not be blank")
+    cwd = value.get("cwd")
+    if not isinstance(cwd, str) or not cwd.strip():
+        raise EnvelopeError("the handoff envelope cwd must be a non-empty string")
     parse_timestamp(value.get("created_at"), "created_at")
     expires_at = parse_timestamp(value.get("expires_at"), "expires_at")
     return value, expires_at
 
 
-def quarantine_claim(claimed: pathlib.Path, agent_id: str) -> None:
-    safe_agent_id = re.sub(r"[^A-Za-z0-9_-]", "_", agent_id) or "unknown"
-    failed = claimed.parent / f"{AGENT_TYPE}.failed.{safe_agent_id}.{uuid.uuid4().hex}.json"
+def load_json(path: pathlib.Path) -> dict[str, Any]:
     try:
-        claimed.rename(failed)
+        with path.open(encoding="utf-8") as stream:
+            value = json.load(stream)
     except FileNotFoundError:
-        pass
-    except OSError as error:
-        transport_failure("quarantining an invalid claim", error)
+        raise
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as error:
+        raise EnvelopeError(f"failed to read JSON from {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise EnvelopeError(f"{path} does not contain a JSON object")
+    return value
 
 
-def reconcile_claims(root: pathlib.Path, now: datetime.datetime) -> None:
-    if not root.exists():
-        return
-    for claimed in root.glob(f"{AGENT_TYPE}.claimed.*.json"):
-        try:
-            with claimed.open(encoding="utf-8") as stream:
-                value = json.load(stream)
-            _, expires_at = validate_envelope(value)
-        except (EnvelopeError, FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError):
-            prefix = f"{AGENT_TYPE}.claimed."
-            agent_id = claimed.name[len(prefix) : -len(".json")]
-            quarantine_claim(claimed, agent_id)
-            continue
-        except OSError as error:
-            transport_failure("checking claimed handoffs", error)
-        if expires_at > now:
-            continue
-        try:
-            claimed.unlink()
-        except FileNotFoundError:
-            pass
-        except OSError as error:
-            transport_failure("cleaning an expired claim", error)
+def split_cli_words(value: str) -> list[str]:
+    """Split a user-supplied command fragment using host-native quoting rules."""
+    if os.name != "nt":
+        return shlex.split(value)
 
+    # Python's shlex is POSIX-oriented and corrupts Windows paths such as
+    # C:\\hostedtoolcache\\... by treating backslashes as escapes. Use the same
+    # Windows argv parser used by native processes instead.
+    import ctypes
 
-def stage_locked(
-    root: pathlib.Path,
-    ttl_seconds: int,
-    assignment: str,
-    cwd: Optional[str] = None,
-) -> Tuple[dict, pathlib.Path]:
-    pending = root / f"{AGENT_TYPE}.pending.json"
-    now = datetime.datetime.now(datetime.timezone.utc)
-    replace_expired = False
-    reconcile_claims(root, now)
-    if any(root.glob(f"{AGENT_TYPE}.claimed.*.json")) or any(root.glob(f"{AGENT_TYPE}.failed.*.json")):
-        fail("An omp_worker handoff is already claimed or quarantined. Resolve it before staging another.", 3)
-    if pending.exists():
-        try:
-            with pending.open(encoding="utf-8") as stream:
-                serialized_existing = stream.read()
-            existing = json.loads(serialized_existing)
-        except FileNotFoundError:
-            existing = None
-        except (json.JSONDecodeError, OSError, UnicodeDecodeError):
-            fail("The existing OMP handoff is malformed. Refusing to replace it.", 9)
-        if existing is not None:
-            try:
-                _, expires_at = validate_envelope(existing)
-            except EnvelopeError:
-                fail(
-                    "The existing OMP handoff has an invalid schema, agent type, assignment, or expiry. Refusing to replace it.",
-                    9,
-                )
-            if expires_at > now:
-                fail("An omp_worker handoff is already pending. Let it be consumed or expire before staging another.", 3)
-            replace_expired = True
-
-    envelope = {
-        "schema": 1,
-        "handoff_id": str(uuid.uuid4()),
-        "agent_type": AGENT_TYPE,
-        "created_at": now.isoformat(),
-        "expires_at": (now + datetime.timedelta(seconds=ttl_seconds)).isoformat(),
-        "assignment": assignment,
-        "cwd": cwd or str(pathlib.Path.cwd()),
-    }
-
-    temporary = root / f".{AGENT_TYPE}.staging.{uuid.uuid4().hex}.tmp"
+    argc = ctypes.c_int()
+    command_line_to_argv = ctypes.windll.shell32.CommandLineToArgvW
+    command_line_to_argv.argtypes = [ctypes.c_wchar_p, ctypes.POINTER(ctypes.c_int)]
+    command_line_to_argv.restype = ctypes.POINTER(ctypes.c_wchar_p)
+    argv = command_line_to_argv(value, ctypes.byref(argc))
+    if not argv:
+        raise OSError(ctypes.get_last_error(), "CommandLineToArgvW failed")
     try:
-        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as stream:
-            json.dump(envelope, stream, ensure_ascii=False, separators=(",", ":"))
-            stream.flush()
-            os.fsync(stream.fileno())
-        if replace_expired:
-            try:
-                os.replace(temporary, pending)
-            except OSError as error:
-                transport_failure("replacing an expired pending handoff", error)
-        else:
-            try:
-                os.link(temporary, pending)
-            except (AttributeError, NotImplementedError, OSError):
-                os.replace(temporary, pending)
-    except OSError as error:
-        transport_failure("writing a pending handoff", error)
+        return [argv[index] for index in range(argc.value)]
     finally:
-        try:
-            temporary.unlink()
-        except FileNotFoundError:
-            pass
-        except OSError as error:
-            transport_failure("cleaning a staged handoff temporary file", error)
-    return envelope, pending
+        ctypes.windll.kernel32.LocalFree(ctypes.cast(argv, ctypes.c_void_p))
 
 
-def stage(root: pathlib.Path, ttl_seconds: int, cwd: Optional[str] = None) -> None:
+def stage(root: pathlib.Path, ttl_seconds: int, cwd: Optional[str]) -> None:
     assignment = sys.stdin.read()
     if not assignment.strip():
         fail("Refusing to stage an empty OMP assignment.", 2)
 
-    with state_lock(root):
-        envelope, pending = stage_locked(root, ttl_seconds, assignment, cwd)
+    ensure_layout(root)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    handoff_id = str(uuid.uuid4())
+    target_cwd = str(pathlib.Path(cwd or pathlib.Path.cwd()).expanduser().resolve())
+    envelope: dict[str, Any] = {
+        "schema": SCHEMA,
+        "handoff_id": handoff_id,
+        "agent_type": AGENT_TYPE,
+        "created_at": now.isoformat(),
+        "expires_at": (now + datetime.timedelta(seconds=ttl_seconds)).isoformat(),
+        "assignment": assignment,
+        "cwd": target_cwd,
+    }
+
+    job_dir = root / "jobs" / handoff_id
+    job_dir.mkdir(mode=0o700)
+    atomic_write_json(job_dir / "envelope.json", envelope)
+    pending_path = root / "pending" / f"{handoff_id}.json"
+    atomic_write_json(pending_path, envelope)
 
     json.dump(
         {
             "staged": True,
-            "handoff_id": envelope["handoff_id"],
+            "schema": SCHEMA,
+            "handoff_id": handoff_id,
             "agent_type": AGENT_TYPE,
             "expires_at": envelope["expires_at"],
-            "pending_path": str(pending),
-            "cwd": envelope.get("cwd"),
+            "cwd": target_cwd,
+            "state_root": str(root),
+            "pending_path": str(pending_path),
+            "job_dir": str(job_dir),
         },
         sys.stdout,
         ensure_ascii=False,
@@ -265,150 +212,297 @@ def stage(root: pathlib.Path, ttl_seconds: int, cwd: Optional[str] = None) -> No
     sys.stdout.flush()
 
 
-def run_omp_process(assignment: str, cwd: str, timeout_seconds: int = 600) -> Tuple[int, str, str]:
-    """
-    Executes the external OMP process with the supplied assignment.
-    """
-    omp_bin = os.environ.get("OMP_BIN", "omp")
-    omp_args_env = os.environ.get("OMP_ARGS")
+def _flatten_text(value: Any) -> list[str]:
+    texts: list[str] = []
+    if isinstance(value, str):
+        if value.strip():
+            texts.append(value)
+    elif isinstance(value, list):
+        for item in value:
+            texts.extend(_flatten_text(item))
+    elif isinstance(value, dict):
+        for key in ("text", "content", "message", "output", "response"):
+            if key in value:
+                texts.extend(_flatten_text(value[key]))
+    return texts
 
-    cmd = shlex.split(omp_bin)
+
+def parse_omp_jsonl(
+    stdout: str,
+) -> tuple[str, Optional[dict[str, Any]], int, Optional[str], Optional[str]]:
+    final_text = ""
+    usage: Optional[dict[str, Any]] = None
+    parsed_events = 0
+    stop_reason: Optional[str] = None
+    error_message: Optional[str] = None
+
+    for raw_line in stdout.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            # Keep parsing earlier complete records. OMP has had JSON-mode cases
+            # where a large final agent_end record was truncated after a complete
+            # assistant message_end.
+            continue
+        if not isinstance(event, dict):
+            continue
+        parsed_events += 1
+
+        event_usage = event.get("usage")
+        if isinstance(event_usage, dict):
+            usage = event_usage
+
+        message = event.get("message")
+        if isinstance(message, dict):
+            message_usage = message.get("usage")
+            if isinstance(message_usage, dict):
+                usage = message_usage
+
+            if message.get("role") == "assistant":
+                raw_stop_reason = message.get("stopReason") or message.get("stop_reason")
+                if isinstance(raw_stop_reason, str) and raw_stop_reason:
+                    stop_reason = raw_stop_reason
+                raw_error = message.get("errorMessage") or message.get("error_message")
+                if isinstance(raw_error, str) and raw_error:
+                    error_message = raw_error
+
+        event_type = str(event.get("type") or event.get("event") or "").lower()
+        role = str(event.get("role") or "").lower()
+        is_finalish = (
+            event_type in {"message_end", "assistant_message", "assistant", "final", "response"}
+            or role == "assistant"
+        )
+        if is_finalish:
+            candidates = _flatten_text(
+                message if isinstance(message, dict)
+                else event.get("content", event.get("text", event))
+            )
+            if candidates:
+                final_text = "\n".join(candidates)
+
+    if not final_text:
+        nonempty = [line for line in stdout.splitlines() if line.strip()]
+        if nonempty:
+            final_text = "\n".join(nonempty[-20:])
+
+    if len(final_text) > MAX_SUMMARY_CHARS:
+        final_text = final_text[:MAX_SUMMARY_CHARS] + "\n...[truncated; see omp.jsonl]"
+    return final_text, usage, parsed_events, stop_reason, error_message
+
+
+def build_omp_command(assignment: str) -> list[str]:
+    omp_bin = os.environ.get("OMP_BIN", "omp")
+    command = split_cli_words(omp_bin)
+    if not command:
+        fail("OMP_BIN resolved to an empty command.", 14)
+
+    omp_args_env = os.environ.get("OMP_ARGS")
     if omp_args_env is not None:
         if omp_args_env.strip():
-            cmd += shlex.split(omp_args_env)
+            command.extend(split_cli_words(omp_args_env))
     else:
-        cmd += ["-p", "--no-session"]
-    cmd.append(assignment)
+        command.extend(["--print", "--mode", "json", "--no-session"])
+
+    command.extend(["--", assignment])
+    return command
+
+
+def execute_omp(
+    assignment: str,
+    cwd: str,
+    timeout_seconds: int,
+) -> tuple[int, str, str, str]:
+    command = build_omp_command(assignment)
     try:
         process = subprocess.run(
-            cmd,
+            command,
             cwd=cwd,
-            input=None,
             capture_output=True,
             text=True,
             timeout=timeout_seconds,
             encoding="utf-8",
             errors="replace",
         )
-        return process.returncode, process.stdout, process.stderr
+        return process.returncode, process.stdout, process.stderr, "completed"
     except FileNotFoundError:
-        return 127, "", f"OMP executable '{omp_bin}' was not found in PATH or environment."
-    except subprocess.TimeoutExpired as exc:
-        stdout = exc.stdout or ""
-        stderr = exc.stderr or ""
-        return 124, stdout, f"{stderr}\nOMP process timed out after {timeout_seconds} seconds."
-    except Exception as exc:
-        return 1, "", f"Failed to execute OMP process: {exc}"
+        return 127, "", f"OMP executable '{command[0]}' was not found.", "spawn_error"
+    except subprocess.TimeoutExpired as error:
+        stdout = error.stdout or ""
+        stderr = error.stderr or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        stderr = f"{stderr}\nOMP process timed out after {timeout_seconds} seconds.".strip()
+        return 124, stdout, stderr, "timeout"
+    except Exception as error:  # pragma: no cover - defensive transport guard
+        return 1, "", f"Failed to execute OMP process: {error}", "transport_error"
 
 
-def run_target_hook_locked(root: pathlib.Path, hook_input: dict) -> None:
-    now = datetime.datetime.now(datetime.timezone.utc)
-    reconcile_claims(root, now)
-    pending = root / f"{AGENT_TYPE}.pending.json"
-    if any(root.glob(f"{AGENT_TYPE}.claimed.*.json")) or any(root.glob(f"{AGENT_TYPE}.failed.*.json")):
-        fail("An OMP handoff is already claimed or quarantined.", 11)
-    if not pending.exists():
-        fail("No OMP handoff was available for the omp_worker start.", 10)
-    agent_id = re.sub(r"[^A-Za-z0-9_-]", "_", str(hook_input.get("agent_id") or uuid.uuid4().hex))
-    claimed = root / f"{AGENT_TYPE}.claimed.{agent_id}.{uuid.uuid4().hex}.json"
+def completed_result(root: pathlib.Path, handoff_id: str) -> Optional[dict[str, Any]]:
+    result_path = root / "jobs" / handoff_id / "result.json"
+    if not result_path.exists():
+        return None
     try:
-        pending.rename(claimed)
-    except FileNotFoundError:
-        fail("The OMP handoff disappeared before it could be claimed.", 10)
-    except OSError as error:
-        transport_failure("claiming the pending handoff", error)
+        value = load_json(result_path)
+    except EnvelopeError:
+        return None
+    return value
+
+
+def run_job(root: pathlib.Path, handoff_id_value: str, timeout_seconds: int) -> None:
     try:
-        claimed.chmod(0o600)
-    except OSError:
-        pass
+        handoff_id = normalize_handoff_id(handoff_id_value)
+    except EnvelopeError as error:
+        fail(str(error), 7)
 
-    try:
-        with claimed.open(encoding="utf-8") as stream:
-            envelope = json.load(stream)
-        envelope, expires_at = validate_envelope(envelope)
-    except (EnvelopeError, json.JSONDecodeError, OSError, UnicodeDecodeError):
-        quarantine_claim(claimed, agent_id)
-        fail("The pending OMP handoff is malformed or has an invalid schema.", 5)
-
-    if expires_at <= now:
-        try:
-            claimed.unlink()
-        except OSError as error:
-            transport_failure("removing an expired pending handoff", error)
-        fail("The pending OMP handoff expired before the child started.", 6)
-
-    assignment = envelope["assignment"]
-    target_cwd = envelope.get("cwd") or str(pathlib.Path.cwd())
-
-    # Get timeout from environment if configured
-    timeout_val = int(os.environ.get("OMP_TIMEOUT", "600"))
-
-    # Execute OMP harness
-    returncode, stdout, stderr = run_omp_process(assignment, target_cwd, timeout_val)
-
-    status_str = "SUCCESS" if returncode == 0 else f"FAILED (Exit Code {returncode})"
-
-    additional_context = (
-        f"You are the spawned omp_worker child interface, communicating the results of the external OMP coding harness to Codex.\n\n"
-        f"=== OMP RUNTIME STATUS ===\n"
-        f"Status: {status_str}\n"
-        f"Working Directory: {target_cwd}\n\n"
-        f"=== OMP STDOUT ===\n{stdout or '(none)'}\n\n"
-        f"=== OMP STDERR ===\n{stderr or '(none)'}\n\n"
-        f"=== ORIGINAL PARENT ASSIGNMENT ===\n{assignment}\n\n"
-        f"Please synthesize the above results, summarize what OMP accomplished, and report any key changes, files touched, or errors to the parent agent."
-    )
-
-    try:
-        json.dump(
-            {
-                "hookSpecificOutput": {
-                    "hookEventName": "SubagentStart",
-                    "additionalContext": additional_context,
-                }
-            },
-            sys.stdout,
-            ensure_ascii=False,
-            separators=(",", ":"),
-        )
+    ensure_layout(root)
+    existing = completed_result(root, handoff_id)
+    if existing is not None:
+        json.dump(existing, sys.stdout, ensure_ascii=False, separators=(",", ":"))
         sys.stdout.flush()
-    except OSError as error:
-        transport_failure("delivering the claimed handoff", error)
-    finally:
-        try:
-            claimed.unlink()
-        except (FileNotFoundError, OSError):
-            pass
-
-
-def run_hook(root: pathlib.Path) -> None:
-    try:
-        hook_input = json.load(sys.stdin)
-    except json.JSONDecodeError as error:
-        fail(f"SubagentStart hook input was invalid JSON: {error}", 4)
-    if not isinstance(hook_input, dict):
-        fail("SubagentStart hook input must be a JSON object.", 4)
-    if hook_input.get("hook_event_name") != "SubagentStart" or hook_input.get("agent_type") != AGENT_TYPE:
         return
 
-    with state_lock(root):
-        run_target_hook_locked(root, hook_input)
+    job_dir = root / "jobs" / handoff_id
+    if not job_dir.exists():
+        fail(f"Unknown OMP handoff: {handoff_id}", 10)
+
+    lock_path = job_dir / ".run.lock"
+    try:
+        lock_fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        fail(f"OMP handoff {handoff_id} is already running.", 13)
+    except OSError as error:
+        fail(f"Could not acquire OMP handoff lock: {error}", 12)
+    else:
+        os.close(lock_fd)
+
+    pending_path = root / "pending" / f"{handoff_id}.json"
+    running_path = root / "running" / f"{handoff_id}.json"
+    terminal_path: pathlib.Path
+    try:
+        try:
+            envelope = load_json(pending_path)
+            envelope, expires_at = validate_envelope(envelope)
+        except FileNotFoundError:
+            existing = completed_result(root, handoff_id)
+            if existing is not None:
+                json.dump(existing, sys.stdout, ensure_ascii=False, separators=(",", ":"))
+                sys.stdout.flush()
+                return
+            fail(f"OMP handoff {handoff_id} is not pending.", 10)
+        except EnvelopeError as error:
+            fail(f"Invalid OMP handoff {handoff_id}: {error}", 5)
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if expires_at <= now:
+            terminal_path = root / "failed" / f"{handoff_id}.json"
+            try:
+                os.replace(pending_path, terminal_path)
+            except OSError:
+                pass
+            fail(f"OMP handoff {handoff_id} expired before execution.", 6)
+
+        try:
+            os.replace(pending_path, running_path)
+        except FileNotFoundError:
+            fail(f"OMP handoff {handoff_id} was claimed by another worker.", 13)
+        except OSError as error:
+            fail(f"Could not claim OMP handoff {handoff_id}: {error}", 12)
+
+        assignment = str(envelope["assignment"])
+        target_cwd = str(envelope["cwd"])
+        returncode, stdout, stderr, execution_state = execute_omp(
+            assignment, target_cwd, timeout_seconds
+        )
+
+        (job_dir / "omp.jsonl").write_text(stdout, encoding="utf-8", errors="replace")
+        (job_dir / "stderr.log").write_text(stderr, encoding="utf-8", errors="replace")
+        summary, usage, parsed_events, stop_reason, structured_error = parse_omp_jsonl(stdout)
+
+        provider_failed = (
+            (stop_reason or "").lower() in {"error", "aborted"}
+            or bool(structured_error)
+        )
+        status = "success" if returncode == 0 and not provider_failed else "failed"
+        if returncode == 0 and provider_failed:
+            execution_state = "provider_error"
+
+        result: dict[str, Any] = {
+            "schema": SCHEMA,
+            "handoff_id": handoff_id,
+            "agent_type": AGENT_TYPE,
+            "status": status,
+            "execution_state": execution_state,
+            "exit_code": returncode,
+            "stop_reason": stop_reason,
+            "structured_error": structured_error,
+            "cwd": target_cwd,
+            "summary": summary,
+            "usage": usage,
+            "parsed_json_events": parsed_events,
+            "stderr_tail": (
+                stderr[-MAX_STDERR_CHARS:]
+                if len(stderr) <= MAX_STDERR_CHARS
+                else "...[truncated]\n" + stderr[-MAX_STDERR_CHARS:]
+            ),
+            "artifacts": {
+                "job_dir": str(job_dir),
+                "omp_jsonl": str(job_dir / "omp.jsonl"),
+                "stderr_log": str(job_dir / "stderr.log"),
+                "result_json": str(job_dir / "result.json"),
+            },
+        }
+        atomic_write_json(job_dir / "result.json", result)
+
+        terminal_dir = "completed" if status == "success" else "failed"
+        terminal_path = root / terminal_dir / f"{handoff_id}.json"
+        try:
+            os.replace(running_path, terminal_path)
+        except OSError as error:
+            result["state_warning"] = f"Could not move running handoff to {terminal_dir}: {error}"
+            atomic_write_json(job_dir / "result.json", result)
+
+        json.dump(result, sys.stdout, ensure_ascii=False, separators=(",", ":"))
+        sys.stdout.flush()
+    finally:
+        try:
+            lock_path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="OMP Subagent Bridge for Codex")
-    parser.add_argument("--mode", required=True, choices=("stage", "hook"))
-    parser.add_argument("--ttl-seconds", type=int, default=600)
+    parser.add_argument("--mode", required=True, choices=("stage", "run"))
+    parser.add_argument("--ttl-seconds", type=int, default=900)
     parser.add_argument("--state-directory")
     parser.add_argument("--cwd", help="Target working directory for OMP execution")
+    parser.add_argument("--handoff-id", help="UUID returned by stage; required for run mode")
+    parser.add_argument(
+        "--timeout-seconds",
+        type=int,
+        default=int(os.environ.get("OMP_TIMEOUT", str(DEFAULT_TIMEOUT))),
+        help="OMP process timeout for run mode",
+    )
     arguments = parser.parse_args()
-    if not 1 <= arguments.ttl_seconds <= 3600:
-        fail("--ttl-seconds must be between 1 and 3600.", 8)
+
+    if not 1 <= arguments.ttl_seconds <= 86400:
+        fail("--ttl-seconds must be between 1 and 86400.", 8)
+    if not 1 <= arguments.timeout_seconds <= 86400:
+        fail("--timeout-seconds must be between 1 and 86400.", 8)
+
     root = state_root(arguments.state_directory)
     if arguments.mode == "stage":
         stage(root, arguments.ttl_seconds, arguments.cwd)
         return
-    run_hook(root)
+
+    if not arguments.handoff_id:
+        fail("--handoff-id is required in run mode.", 7)
+    run_job(root, arguments.handoff_id, arguments.timeout_seconds)
 
 
 if __name__ == "__main__":

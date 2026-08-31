@@ -19,10 +19,19 @@ def test_omp_worker_toml():
         data = tomllib.load(f)
 
     assert data["name"] == "omp_worker"
-    assert "description" in data
     assert "$use-omp-worker" in data["description"]
-    assert "developer_instructions" in data
-    assert data["sandbox_mode"] == "workspace-write"
+    assert "--mode run" in data["developer_instructions"]
+    assert "handoff UUID" in data["developer_instructions"]
+    assert "SubagentStart" not in data["developer_instructions"]
+
+    # OMP needs outbound provider access, but it should keep the filesystem at
+    # Codex's built-in workspace boundary rather than using danger-full-access.
+    assert "sandbox_mode" not in data
+    assert data["default_permissions"] == "omp-network-workspace"
+    permission = data["permissions"]["omp-network-workspace"]
+    assert permission["extends"] == ":workspace"
+    assert permission["network"]["mode"] == "full"
+    assert permission["network"]["allow_local_binding"] is False
 
 
 if __name__ == "__main__":
