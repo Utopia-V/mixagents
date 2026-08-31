@@ -1,10 +1,12 @@
-[仓库索引](../../README.md) · [English](README.en.md)
+[仓库索引](../../README.md) · [完整使用指南](docs/user-guide.zh-CN.md) · [English](README.en.md)
 
 # Codex OMP Subagent
 
 让 Codex 主任务把复杂代码重构、全库探索、AST/LSP 辅助分析和长程执行任务委派给外部 **OMP (Oh My Pi)** coding harness，同时保留 Codex 原生 `spawn_agent` 的父子会话结构。
 
 V2 的关键变化是：**OMP 不再由 `SubagentStart` Hook 在 child 启动前执行，而是由真正的 `omp_worker` Codex child 自己启动。** `omp_worker` 使用现代 Codex permission profile：文件系统继承内置 `:workspace` 边界，同时为 OMP 配置的云模型 provider 开启出站网络；不会为了联网退化成 `danger-full-access`。
+
+如果你已经合入/安装 V2，只想知道“怎么装、怎么第一次验证、日常怎么写 prompt、怎么排障”，直接阅读 **[完整使用指南](docs/user-guide.zh-CN.md)**。
 
 ---
 
@@ -171,7 +173,9 @@ network = { mode = "full", allow_local_binding = false }
 
 ## 使用
 
-Parent 应按照 `$use-omp-worker`：
+日常用户通常不需要手工操作 stage/run；直接让 Codex 使用 `$use-omp-worker`。完整 prompt 模板、首次验证、更新、卸载和故障排查见 **[完整使用指南](docs/user-guide.zh-CN.md)**。
+
+底层 Parent 应按照 `$use-omp-worker`：
 
 1. 组织自包含 assignment；
 2. 调用 bridge `--mode stage`；
