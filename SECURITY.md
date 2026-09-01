@@ -24,7 +24,7 @@ private data.
 | Component | External data boundary | Local authority |
 | --- | --- | --- |
 | Codex DeepSeek Subagent | The delegated assignment and returned tool context are sent to the configured DeepSeek endpoint | A trusted `SubagentStart` Hook briefly stages plaintext in local user state; the child defaults to read-only, but current Codex permission inheritance can affect the effective sandbox |
-| Pi DSH Mimic | The task, conversation context, and tool results are sent through the selected DeepSeek or OpenCode route | The extension runs with the Pi process's permissions and contributes a `str_replace_editor` that can create and modify files |
+| Pi DSH Mimic | For model ids containing `deepseek-v4-pro`, the task, conversation context, and tool results are sent through the provider selected in Pi | The extension runs with the Pi process's permissions and contributes a `str_replace_editor` that can create and modify files |
 
 A local sandbox is not a confidentiality boundary: content sent to a model
 crosses the configured provider boundary even when filesystem mutation is

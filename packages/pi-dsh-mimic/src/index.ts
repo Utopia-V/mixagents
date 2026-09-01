@@ -12,7 +12,6 @@ import {
   MINIMAL_PERSONA,
   STATE_ENTRY_TYPE,
   TARGET_MODEL_ID,
-  TARGET_PROVIDERS,
 } from "./constants.js";
 import { executeEditor, type EditorArgs } from "./editor.js";
 import {
@@ -184,5 +183,4 @@ export {
   MINIMAL_PERSONA,
   STATE_ENTRY_TYPE,
   TARGET_MODEL_ID,
-  TARGET_PROVIDERS,
 };

@@ -37,8 +37,11 @@ contains the complete runs and evaluator sources.
 
 ## Install and use
 
-Requirements: Node.js 22.19 or later, Pi 0.84.2 or later, and either the official
-DeepSeek API or OpenCode Go configured in Pi.
+Requirements: Node.js 22.19 or later, Pi 0.84.2 or later, and a provider
+configured in Pi whose model id contains `deepseek-v4-pro`. The official
+DeepSeek API and OpenCode Go are the repository-qualified routes. The extension
+also activates for third-party providers; compatibility, data handling, and
+billing then follow the provider selected by the user.
 
 Install for the current user:
 
@@ -80,8 +83,8 @@ new session when a clean non-target tool catalog matters.
 
 `str_replace_editor` can view, create, and modify absolute paths with the Pi
 process's filesystem permissions. The task, context, and tool results are sent
-to the selected DeepSeek or OpenCode provider. The extension does not read or
-store API keys. See [SECURITY.md](SECURITY.md) for the full boundary.
+to the provider selected by the user. The extension does not read or store API
+keys. See [SECURITY.md](SECURITY.md) for the full boundary.
 
 ## Development
 

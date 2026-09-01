@@ -99,7 +99,7 @@ provider payload 和 active catalog，其他 package 的工具会自然出现。
 
 | 当前行为 | 主要证据 |
 | --- | --- |
-| 只武装目标 provider/model 的新 session | 已有对话无法还原真实 bootstrap；隔离测试覆盖目标与非目标模型 |
+| 只武装模型标识包含 `deepseek-v4-pro` 的新 session | provider 名称不限制激活；已有对话无法还原真实 bootstrap；隔离测试覆盖目标与非目标模型 |
 | 原任务直接进入请求 #1 | 早期原型 98；Whoami 93 |
 | 请求 #1 使用 Minimal persona 与 DSH 两项 schema | Pi 原生 `bash/read` 93；近似 Minimal 93 |
 | 第一次有效响应后恢复 Pi 原生执行 | one-shot 96–98；持续 DSH wire 94 |
@@ -122,9 +122,9 @@ wire 调用 225 次工具只得到 94，早期原型调用 148 次得到 98；�
 
 ## 实现验证
 
-TypeScript typecheck 已通过，13 项自动化测试全部通过：12 项覆盖两个 provider、图片、
-错误重试、文本晋升、session resume、crash-stale 恢复、已有对话隔离和非目标模型隔离；
-另 1 项验证 session 统计工具。
+TypeScript typecheck 已通过，14 项自动化测试全部通过：13 项覆盖两个已验证 provider、
+第三方 provider 的命名空间模型标识、图片、错误重试、文本晋升、session resume、
+crash-stale 恢复、已有对话隔离和非目标模型隔离；另 1 项验证 session 统计工具。
 Editor 测试覆盖 create、view、unique replace、insert、相对路径拒绝和歧义替换拒绝。
 
 OpenCode Go bash-first 与 editor-first 离线回环通过 Pi 的真实 package loader 和 provider

@@ -9,7 +9,7 @@ const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 test("package manifest exposes one loadable Pi extension", () => {
   const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
   assert.equal(manifest.name, "pi-dsh-mimic");
-  assert.equal(manifest.version, "0.1.1");
+  assert.equal(manifest.version, "0.1.2");
   assert.equal(
     manifest.description,
     "Unlock DeepSeek V4 Pro's DSH Minimal capability in Pi while keeping Pi's full plugin ecosystem",

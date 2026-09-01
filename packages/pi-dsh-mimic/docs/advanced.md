@@ -117,7 +117,7 @@ establishes a DSH Minimal first request, while Pi remains the execution runtime.
 
 | Current behavior | Main evidence |
 | --- | --- |
-| Arm only fresh sessions on the target provider/model pairs | An existing conversation cannot reproduce a real bootstrap; isolation tests cover target and non-target models |
+| Arm only fresh sessions whose model id contains `deepseek-v4-pro` | Provider names do not gate activation; an existing conversation cannot reproduce a real bootstrap; isolation tests cover target and non-target models |
 | Put the original task in request #1 | Early prototype 98; Whoami 93 |
 | Use the Minimal persona and DSH schemas in request #1 | Pi-native `bash/read` 93; approximate Minimal 93 |
 | Return to Pi-native execution after the first valid response | One-shot 96–98; persistent DSH wire 94 |
@@ -143,10 +143,11 @@ without injecting them into the prompt.
 
 ## Implementation verification
 
-TypeScript typechecking and all 13 automated tests pass. Twelve cover both
-providers, images, error retry, text promotion, session resume, crash-stale
-recovery, existing-conversation isolation, and non-target model isolation; one
-verifies the session-statistics helper. Editor tests cover create, view, unique
+TypeScript typechecking and all 14 automated tests pass. Thirteen cover both
+qualified providers, namespaced model ids on third-party providers, images,
+error retry, text promotion, session resume, crash-stale recovery,
+existing-conversation isolation, and non-target model isolation; one verifies
+the session-statistics helper. Editor tests cover create, view, unique
 replacement, insertion, relative-path rejection, and ambiguous-replacement
 rejection.
 

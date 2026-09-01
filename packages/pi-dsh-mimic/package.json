@@ -1,6 +1,6 @@
 {
   "name": "pi-dsh-mimic",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Unlock DeepSeek V4 Pro's DSH Minimal capability in Pi while keeping Pi's full plugin ecosystem",
   "type": "module",
   "main": "./src/index.ts",

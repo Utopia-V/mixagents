@@ -1,7 +1,6 @@
 import {
   STATE_ENTRY_TYPE,
   TARGET_MODEL_ID,
-  TARGET_PROVIDERS,
 } from "./constants.js";
 import { isJsonObject } from "./protocol.js";
 
@@ -21,9 +20,7 @@ export function supportedRoute(model: { provider?: unknown; id?: unknown } | und
   if (typeof model?.provider !== "string" || typeof model.id !== "string") return undefined;
   const provider = model.provider.toLowerCase();
   const modelId = model.id.toLowerCase();
-  if (modelId !== TARGET_MODEL_ID || !TARGET_PROVIDERS.some((candidate) => candidate === provider)) {
-    return undefined;
-  }
+  if (!modelId.includes(TARGET_MODEL_ID)) return undefined;
   return `${provider}/${modelId}`;
 }
 

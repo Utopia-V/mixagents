@@ -219,9 +219,11 @@ evaluator。
 ## 当前决定
 
 - 产品名为 `pi-dsh-mimic`。`0.1.0` 是首次公开实现；`0.1.1` 只补充 Project2 语境和
-  已发布安装说明，运行时代码不变。
+  已发布安装说明，运行时代码不变；`0.1.2` 将激活条件改为模型标识包含
+  `deepseek-v4-pro`，不再按 provider 名称限制。
 - 默认流程固定为 task-bearing one-shot：请求 #1 模拟 DSH Minimal，请求 #2 恢复 Pi。
-- 同时支持 Pi 的 `deepseek` 与 `opencode-go` provider。
+- DeepSeek 官方 API 与 OpenCode Go 是本文已有运行和离线回环证据的 provider；第三方
+  provider 可以激活扩展，但不属于本文已经验证的实验范围。
 - Minimal persona 保持；完整 Pi system context 不重放。
 - Project2 同一请求流程已有四次 96–98，不继续重复付费运行。
 - 新任务、模型或服务版本变化、provider payload 实质变化，或新的完整任务结果可以重开

@@ -1,7 +1,5 @@
 export const TARGET_MODEL_ID = "deepseek-v4-pro";
 
-export const TARGET_PROVIDERS = ["deepseek", "opencode-go"] as const;
-
 export const MINIMAL_PERSONA = "You are a helpful software engineer assistant.";
 
 export const STATE_ENTRY_TYPE = "pi-dsh-mimic/session-stage";

@@ -4,8 +4,8 @@
 
 `pi-dsh-mimic` does not read, save, log, or transmit API keys. Provider
 credentials remain under Pi and the selected provider's configuration. Never
-put a DeepSeek or OpenCode key in a prompt, repository file, issue, screenshot,
-or captured request.
+put a provider credential in a prompt, repository file, issue, screenshot, or
+captured request.
 
 If a credential has been exposed, revoke or rotate it with the provider before
 continuing.
@@ -13,10 +13,13 @@ continuing.
 ## Provider data boundary
 
 For target sessions, the task, conversation messages, tool schemas, and later
-tool results are sent through either `deepseek/deepseek-v4-pro` or
-`opencode-go/deepseek-v4-pro`. The extension changes the first request's
-persona and tool surface, but it is not an API proxy and does not create a
-confidential channel.
+tool results are sent through the provider selected in Pi. A model id containing
+`deepseek-v4-pro` activates the extension regardless of provider name. The
+repository-qualified routes are `deepseek/deepseek-v4-pro` and
+`opencode-go/deepseek-v4-pro`; third-party provider compatibility and data
+handling remain the user's responsibility. The extension changes the first
+request's persona and tool surface, but it is not an API proxy and does not
+create a confidential channel.
 
 The package adds no model round. The user's ordinary first task is the
 bootstrap request and is billed normally by the selected provider.

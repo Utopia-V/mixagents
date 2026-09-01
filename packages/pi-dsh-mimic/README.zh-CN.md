@@ -31,8 +31,9 @@ assistant/tool 历史会把状态修正到执行阶段。
 
 ## 安装和使用
 
-要求：Node.js 22.19 或更新版本、Pi 0.84.2 或更新版本，并已配置 DeepSeek 官方 API 或
-OpenCode Go。
+要求：Node.js 22.19 或更新版本、Pi 0.84.2 或更新版本，并已在 Pi 中配置模型标识包含
+`deepseek-v4-pro` 的 provider。DeepSeek 官方 API 与 OpenCode Go 是本仓库已验证的路径；
+第三方 provider 也会激活扩展，其兼容性、数据边界和计费由用户选择的 provider 决定。
 
 安装到当前用户：
 
@@ -71,8 +72,8 @@ OpenCode Go 使用 Pi 预期的 `OPENCODE_API_KEY` 环境变量，并将 provide
 | Payload | DSH Minimal 形状 | Pi 原生编码与排序 |
 
 `str_replace_editor` 可以查看、创建和修改绝对路径文件，并继承 Pi 进程的文件系统权限。
-任务、上下文和工具结果会发送给所选 DeepSeek 或 OpenCode provider。扩展不读取或保存
-API key；完整边界见 [SECURITY.md](SECURITY.md)。
+任务、上下文和工具结果会发送给用户选择的 provider。扩展不读取或保存 API key；完整
+边界见 [SECURITY.md](SECURITY.md)。
 
 ## 开发
 

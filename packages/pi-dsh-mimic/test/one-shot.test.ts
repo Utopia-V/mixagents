@@ -175,6 +175,21 @@ test("OpenCode Go receives the same task-bearing bootstrap", async () => {
   });
 });
 
+test("third-party providers activate for model ids containing V4 Pro", async () => {
+  for (const modelId of ["deepseek-v4-pro", "deepseek/deepseek-v4-pro"]) {
+    const harness = createHarness({ provider: "third-party", modelId });
+    await harness.emit("input", { text: "repair the project", source: "interactive" });
+    const first = await harness.emit("before_provider_request", { payload: payload() }) as any;
+    assert.equal(first.messages[0].content, MINIMAL_PERSONA);
+    assert.deepEqual(first.tools.map((tool: any) => tool.function.name), BOOTSTRAP_TOOL_NAMES);
+    assert.deepEqual((harness.entries[0] as any)?.data, {
+      schema: 1,
+      route: `third-party/${modelId}`,
+      stage: "bootstrap",
+    });
+  }
+});
+
 test("a successful text response promotes without adding a synthetic turn", async () => {
   const harness = createHarness();
   await harness.emit("input", { text: "answer directly", source: "rpc" });
@@ -284,10 +299,10 @@ test("switching to V4 Pro inside an existing conversation does not forge a boots
   assert.equal(harness.registeredTools.length, 0);
 });
 
-test("non-target providers and models remain byte-for-byte untouched", async () => {
+test("non-target models remain byte-for-byte untouched regardless of provider", async () => {
   for (const [provider, modelId] of [
-    ["openrouter", "deepseek-v4-pro"],
     ["deepseek", "deepseek-v4-flash"],
+    ["openrouter", "deepseek-v3.2"],
   ]) {
     const harness = createHarness({ provider, modelId });
     assert.equal(await harness.emit("input", { text: "task", source: "interactive" }), undefined);
