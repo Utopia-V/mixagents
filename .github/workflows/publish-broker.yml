@@ -1,0 +1,34 @@
+name: Publish MixAgents Broker
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-mixagents-broker
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Use an npm version with trusted publishing support
+        run: npm install --global npm@11
+      - name: Install development dependencies
+        working-directory: packages/broker
+        run: npm ci
+      - name: Verify Broker
+        working-directory: packages/broker
+        run: npm run check
+      - name: Publish Broker
+        working-directory: packages/broker/plugin/mixagents-broker
+        run: npm publish --access public
