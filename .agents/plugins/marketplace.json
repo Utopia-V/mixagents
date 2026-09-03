@@ -1,0 +1,22 @@
+{
+  "name": "mixagents",
+  "interface": {
+    "displayName": "MixAgents"
+  },
+  "plugins": [
+    {
+      "name": "mixagents-broker",
+      "source": {
+        "source": "npm",
+        "package": "mixagents-broker",
+        "version": "0.1.0",
+        "registry": "https://registry.npmjs.org"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

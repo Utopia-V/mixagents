@@ -4,6 +4,9 @@ Copy the prompt below into Codex. It installs a personal custom subagent, its
 lazy-loaded handoff skill, and its one-shot plaintext task Hook while preserving
 the current OpenAI main-agent model and provider.
 
+This installer is retained only for Codex `0.148.x` and earlier compatible
+builds. On Codex `0.149.0` or later, use MixAgents Broker instead.
+
 ```text
 Install the native DeepSeek V4 Flash custom subagent from the
 `packages/codex-deepseek-subagent` component in
@@ -38,11 +41,14 @@ Scope and invariants:
 Procedure:
 1. Detect the active Codex home without changing it. Respect an existing
    CODEX_HOME; otherwise use ~/.codex. Check `codex --version` when available.
-   Recommend Codex CLI 0.145.0 or newer, but do not upgrade software unless I
-   separately ask. Use the current repository checkout as the source when one
-   is available. Otherwise acquire one temporary source snapshot from GitHub
-   for this installation, verify that its remote is this repository, and use
-   files from that snapshot rather than independently reconstructing them.
+   If the version is `0.149.0` or later, stop before changing any file, report
+   that this legacy cross-provider path is incompatible, and point to
+   `packages/broker/README.md`; do not downgrade Codex. On an earlier compatible
+   build, recommend Codex CLI `0.145.0` or newer, but do not upgrade software
+   unless I separately ask. Use the current repository checkout as the source
+   when one is available. Otherwise acquire one temporary source snapshot from
+   GitHub for this installation, verify that its remote is this repository, and
+   use files from that snapshot rather than independently reconstructing them.
 2. Inspect the target agents directory, any existing v4_flash_worker file, the
    `<codex-home>/skills/use-v4-flash-worker` directory, the applicable personal
    AGENTS.md, user `hooks.json`, inline user Hook configuration, and

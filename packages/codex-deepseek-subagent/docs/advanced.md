@@ -5,6 +5,10 @@
 本页面向希望检查实现、调整兼容策略或贡献平台证据的用户。只想安装和使用时，
 按 [README 三步流程](../README.md) 即可。
 
+> **兼容范围：** 本文记录已经验证的旧版设计。Codex `0.149.0` 及以后会在 Hook
+> 运行前让 child 继承 parent provider；除非章节明确讨论当前上游行为，下文使用现在时的
+> 运行描述只适用于兼容版本。
+
 ## 组合边界
 
 主任务继续使用现有 OpenAI 模型、provider 和 ChatGPT 登录。DeepSeek 只存在于
@@ -59,8 +63,10 @@ macOS 的 Python/POSIX 路径已在 Codex `0.146.0` 上通过同一 callback 流
 协议测试；Linux 使用同一 POSIX 实现。
 
 Codex `0.145.0` 将可配置 subagent 模型与 reasoning effort 的 Multi-agent V2
-标记为稳定。custom agent、Hook 和跨 provider transport 仍在演进，优先使用当前
-稳定版本。
+标记为稳定。Codex `0.149.0` 包含的
+[openai/codex#39299](https://github.com/openai/codex/pull/39299) 随后把 provider
+改为 parent-owned；当前版本会忽略本 Agent 的 `model_provider = "deepseek"`，因此这条
+原生跨 provider 路径不可用。旧基线是历史兼容证据，不支持“优先使用当前稳定版本”的结论。
 
 ## 安装后的文件与配置
 

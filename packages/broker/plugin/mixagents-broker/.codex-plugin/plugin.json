@@ -1,0 +1,31 @@
+{
+  "name": "mixagents-broker",
+  "version": "0.1.0",
+  "description": "Run Codex subagents on configured model providers without switching the controller.",
+  "author": {
+    "name": "Utopia-V",
+    "url": "https://github.com/Utopia-V"
+  },
+  "homepage": "https://github.com/Utopia-V/mixagents/tree/main/packages/broker",
+  "repository": "https://github.com/Utopia-V/mixagents",
+  "license": "MIT",
+  "keywords": ["codex", "subagent", "mcp", "multi-provider"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "MixAgents Broker",
+    "shortDescription": "Run Codex subagents across model providers.",
+    "longDescription": "Choose a configured provider route, start a Codex App Server worker on its exact provider and model, and keep the controller on its current provider.",
+    "developerName": "Utopia-V",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write", "Interactive"],
+    "websiteURL": "https://github.com/Utopia-V/mixagents/tree/main/packages/broker",
+    "privacyPolicyURL": "https://github.com/Utopia-V/mixagents/blob/main/packages/broker/SECURITY.md",
+    "termsOfServiceURL": "https://github.com/Utopia-V/mixagents/blob/main/LICENSE",
+    "defaultPrompt": [
+      "Use $broker to run this review on the configured DeepSeek route.",
+      "Use $broker to delegate this task to a configured low-cost worker.",
+      "Use $broker to run this coding task on the named provider route."
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "defaultRoute": "opencode-deepseek-flash",
+  "workspaceRoots": [
+    "/absolute/path/to/projects"
+  ],
+  "routes": {
+    "opencode-deepseek-flash": {
+      "description": "Fast, low-cost worker for bounded review, extraction, and coding tasks.",
+      "provider": "opencode_go",
+      "providerName": "OpenCode Go",
+      "model": "deepseek-v4-flash",
+      "contextWindow": 1000000,
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "envKey": "OPENCODE_API_KEY",
+      "tags": ["fast", "low-cost", "coding"],
+      "maxAccess": "workspace-write",
+      "reasoningEffort": "medium"
+    }
+  }
+}

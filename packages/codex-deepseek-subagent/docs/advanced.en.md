@@ -6,6 +6,11 @@ This page is for users who want to inspect the implementation, change the
 compatibility strategy, or contribute platform evidence. To install and use the
 worker, follow the [three-step README](../README.en.md).
 
+> **Compatibility scope:** this document records the qualified legacy design.
+> Codex `0.149.0` and later inherit the parent's model provider before the Hook
+> can run, so present-tense runtime descriptions below apply only to compatible
+> builds unless a section explicitly discusses current upstream behavior.
+
 ## Composition boundary
 
 The main task keeps its current OpenAI model, provider, and ChatGPT login.
@@ -75,8 +80,12 @@ On macOS, the Python/POSIX route has passed the same callback flow on Codex
 `0.146.0` and 27 protocol tests; Linux uses the same POSIX implementation.
 
 Codex `0.145.0` marked configurable subagent models and reasoning effort in
-Multi-agent V2 stable. Custom agents, Hooks, and cross-provider transport still
-evolve, so prefer a current stable release.
+Multi-agent V2 stable. Codex `0.149.0` later included
+[openai/codex#39299](https://github.com/openai/codex/pull/39299), which made the
+provider parent-owned. Current versions ignore this Agent's
+`model_provider = "deepseek"`, so the native cross-provider route is
+unavailable. The old baseline is historical compatibility evidence, not a
+reason to prefer the current stable release.
 
 ## Installed files and configuration
 

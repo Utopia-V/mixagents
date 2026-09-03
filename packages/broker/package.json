@@ -1,0 +1,38 @@
+{
+  "name": "mixagents-broker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cross-provider subagent routing for Codex",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "agent",
+    "subagent",
+    "mcp",
+    "multi-provider"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Utopia-V/mixagents.git",
+    "directory": "packages/broker"
+  },
+  "homepage": "https://github.com/Utopia-V/mixagents/tree/main/packages/broker#readme",
+  "bugs": {
+    "url": "https://github.com/Utopia-V/mixagents/issues"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.12.4",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "check": "npm run typecheck && npm test",
+    "pack:check": "npm pack --dry-run ./plugin/mixagents-broker"
+  }
+}

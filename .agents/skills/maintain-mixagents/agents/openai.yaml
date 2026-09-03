@@ -1,0 +1,6 @@
+interface:
+  display_name: "Maintain Mixagents"
+  short_description: "Preserve mixagents integration contracts"
+  default_prompt: "Use $maintain-mixagents to change this package without breaking its routing or lifecycle contract."
+policy:
+  allow_implicit_invocation: true

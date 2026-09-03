@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "broker": {
+      "command": "node",
+      "args": ["dist/server.js"],
+      "cwd": ".",
+      "startup_timeout_sec": 15,
+      "tool_timeout_sec": 300,
+      "env_vars": [
+        "MIXAGENTS_BROKER_CONFIG",
+        "MIXAGENTS_BROKER_DATA_DIR",
+        "MIXAGENTS_BROKER_CODEX_BIN",
+        "MIXAGENTS_BROKER_CREDENTIALS_JSON"
+      ]
+    }
+  }
+}

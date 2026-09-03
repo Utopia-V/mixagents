@@ -2,24 +2,28 @@
 
 Run this from any new Codex task after the Hook has been reviewed and trusted.
 No repository checkout is required. The test makes one small paid DeepSeek API
-request.
+request. Do not run it on Codex `0.149.0` or later; that release line cannot use
+this native cross-provider child.
 
 ```text
 Test the installed DeepSeek Flash subagent through the recommended native Hook
 path. Do not ask me for an API key or display its value.
 
-1. Load $use-v4-flash-worker. In parent-owned execution state, generate a fresh
+1. Check the active Codex version. If it is `0.149.0` or later, make no provider
+   call and stop with the compatibility reason and the MixAgents Broker path at
+   https://github.com/Utopia-V/mixagents/tree/main/packages/broker.
+2. Load $use-v4-flash-worker. In parent-owned execution state, generate a fresh
    unpredictable marker and build one child assignment: return exactly two
    lines, `marker=<the marker>` and `arithmetic=<the result of 17 * 19>`. Do not
    put the marker or assignment in commentary, a file, inherited turns, or the
    spawn message.
-2. Stage that assignment through the installed plaintext handoff script.
-3. Spawn the exact agent type v4_flash_worker with a unique task name and
+3. Stage that assignment through the installed plaintext handoff script.
+4. Spawn the exact agent type v4_flash_worker with a unique task name and
    fork_turns="none". Do not set a token budget or reasoning-effort restriction.
-4. Use one native task-sized idle wait or callback. Do not short-poll, send a
+5. Use one native task-sized idle wait or callback. Do not short-poll, send a
    follow-up, retry through another transport, or calculate a substitute answer
    in the parent.
-5. Pass only if a distinct v4_flash_worker child returns the exact fresh marker
+6. Pass only if a distinct v4_flash_worker child returns the exact fresh marker
    once and `arithmetic=323`, the pending handoff is consumed, and the parent
    model/provider configuration remains unchanged.
 

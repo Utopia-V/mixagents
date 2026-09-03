@@ -7,12 +7,21 @@
 任务交给 `deepseek-v4-flash` 子代理。是否委派仍由 Codex Parent 决定；安装不会更换主
 任务的 model、provider 或 ChatGPT 登录。
 
-当前 Codex 在 OpenAI Parent 与第三方 provider child 之间仍可能交付不可读的加密任务。
-本组件用一次性 plaintext `SubagentStart` Hook 传递 assignment；上游恢复可靠的
-provider-neutral 传输后，这层 workaround 可以删除。技术背景见
+> **兼容状态：** 此路径的 live 基线为 Codex CLI `0.146.0`。Codex `0.149.0` 起会让
+> child 继承 parent 的 `model_provider`，因此当前版本无法形成 OpenAI parent →
+> DeepSeek child。见 [Issue #9](https://github.com/Utopia-V/mixagents/issues/9) 和
+> [openai/codex#40858](https://github.com/openai/codex/issues/40858)。
+> 当前 Codex 的跨供应商路线见 [MixAgents Broker](../broker/README.zh-CN.md)。
+
+Codex `0.149.0` 及以后不要继续安装本组件；改用 `mixagents-broker`。旧版安装说明保留给
+仍固定在兼容终端上的现有用户。
+
+在兼容旧版中，Codex 仍可能在 OpenAI Parent 与第三方 provider child 之间交付不可读的
+加密任务。本组件用一次性 plaintext `SubagentStart` Hook 传递 assignment；上游同时
+恢复可信的跨 provider 选择和 provider-neutral 传输后，这层 workaround 可以删除。技术背景见
 [高级说明](docs/advanced.md#为什么-v2-需要-hook)。
 
-## 安装
+## 旧版安装
 
 ### 1. 配置 DeepSeek API key
 

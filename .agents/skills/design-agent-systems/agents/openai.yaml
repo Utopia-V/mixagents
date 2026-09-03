@@ -1,0 +1,3 @@
+interface:
+  display_name: "Design Agent Systems"
+  short_description: "Place agent state, tools, and evidence in the owning layer"

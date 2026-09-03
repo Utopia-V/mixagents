@@ -2,13 +2,26 @@
 
 # mixagents
 
-这里收录两套彼此独立的 Agent 集成。它们解决的问题不同，可以单独安装。
+本仓库包含三个可独立安装的 Agent package。
+
+## MixAgents Broker
+
+让 Codex 在不切换 controller provider 的情况下，把子任务交给其他模型供应商。npm
+package 为 [`mixagents-broker`](https://www.npmjs.com/package/mixagents-broker)，通过
+MixAgents marketplace 安装：
+
+```bash
+codex plugin marketplace add Utopia-V/mixagents
+codex plugin add mixagents-broker@mixagents
+```
+
+[安装、配置与实现说明](packages/broker/README.zh-CN.md) ·
+[English](packages/broker/README.md) · [安全说明](packages/broker/SECURITY.md)
 
 ## Codex DeepSeek Subagent
 
-让 Codex 主任务继续使用 OpenAI，把边界明确、文本量较大的任务交给
-`deepseek-v4-flash` 子代理。当前版本使用一次性 plaintext Hook，绕过 Codex
-跨 provider 子任务正文不可读的问题。
+旧版 DeepSeek 子代理方案，仅适用于 Codex `0.148.x` 及更早的兼容版本。Codex
+`0.149.0` 起改用 MixAgents Broker。
 
 [安装使用](packages/codex-deepseek-subagent/README.md) ·
 [高级说明](packages/codex-deepseek-subagent/docs/advanced.md) ·
@@ -27,11 +40,10 @@
 
 ## 安装前
 
-两套集成都会把任务内容发送给用户配置的第三方 provider。Codex 组件会在本地用户状态中
-短暂保存明文任务；Pi 组件提供可以读写文件的 `str_replace_editor`。DeepSeek 与
-OpenCode 的费用独立于 ChatGPT/OpenAI 订阅。仓库级说明见 [SECURITY.md](SECURITY.md)。
+这些 package 可能把任务内容、文件内容和工具结果发送给配置的第三方 provider，相关费用
+独立于 ChatGPT/OpenAI 订阅。安装前阅读 [SECURITY.md](SECURITY.md)。
 
-各组件的源码、测试和文档都在自己的 `packages/` 目录中。根目录 `prompts/` 只保留旧
+各 package 的源码、测试和文档都在自己的 `packages/` 目录中。根目录 `prompts/` 只保留旧
 raw URL 的转发入口。Issue 与贡献约定见
 [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md)。
 

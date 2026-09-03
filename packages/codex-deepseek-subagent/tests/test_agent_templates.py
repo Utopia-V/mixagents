@@ -82,6 +82,7 @@ assert (
 assert "former command-auth template remains an explicit compatibility option" in installer
 assert "On Windows, fully\n    restart Codex first" in installer
 assert "On Windows, use agents/windows-live-env/v4-flash-worker.toml" not in installer
+assert "If the version is `0.149.0` or later, stop before changing any file" in installer
 for source_path in (
     "packages/codex-deepseek-subagent/skills/use-v4-flash-worker",
     "packages/codex-deepseek-subagent/hooks/plaintext-handoff.ps1",
@@ -127,5 +128,8 @@ for prompt_name in (
         f"packages/codex-deepseek-subagent/prompts/{prompt_name}"
     )
     assert canonical_url in legacy
+
+quick_smoke = (ROOT / "prompts/quick-smoke-test.md").read_text(encoding="utf-8")
+assert "If it is `0.149.0` or later, make no provider" in quick_smoke
 
 print("agent template checks passed")

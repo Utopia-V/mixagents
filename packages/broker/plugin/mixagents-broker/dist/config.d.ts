@@ -1,0 +1,10 @@
+import type { Access, BrokerConfig, RouteConfig, RouteView } from "./types.js";
+export declare function defaultConfigPath(environment?: NodeJS.ProcessEnv): string;
+export declare function defaultDataDir(environment?: NodeJS.ProcessEnv): string;
+export declare function materializeCredentialEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
+export declare function parseConfig(input: unknown, configPath: string, environment?: NodeJS.ProcessEnv): BrokerConfig;
+export declare function loadConfig(configPath?: string, environment?: NodeJS.ProcessEnv): Promise<BrokerConfig>;
+export declare function routeView(route: RouteConfig, config: BrokerConfig, environment?: NodeJS.ProcessEnv): RouteView;
+export declare function validateWorkspace(cwdInput: string, configuredRoots: string[], clientRoots: string[]): Promise<string>;
+export declare function requireRoute(config: BrokerConfig, routeId: string): RouteConfig;
+export declare function requireAccess(route: RouteConfig, requested: unknown): Access;

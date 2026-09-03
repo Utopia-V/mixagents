@@ -8,13 +8,26 @@ search, log, and extraction work to a `deepseek-v4-flash` child. The parent stil
 decides when delegation is useful. Installation does not replace the main
 task's model, provider, or ChatGPT login.
 
-Codex can still deliver an unreadable encrypted assignment from an OpenAI
-parent to a third-party-provider child. This component carries the assignment
-through a one-shot plaintext `SubagentStart` Hook. The workaround can be removed
-once upstream Codex provides reliable provider-neutral delivery. See
+> **Compatibility status:** this route has a live baseline on Codex CLI
+> `0.146.0`. Starting with Codex `0.149.0`, the child inherits the parent's
+> `model_provider`, so current versions cannot form an OpenAI parent → DeepSeek
+> child. See [Issue #9](https://github.com/Utopia-V/mixagents/issues/9) and
+> [openai/codex#40858](https://github.com/openai/codex/issues/40858).
+> For the current-Codex replacement path, see
+> [MixAgents Broker](../broker/README.md).
+
+Do not install this component on Codex `0.149.0` or later; use
+`mixagents-broker` instead. The legacy instructions remain for existing users
+who deliberately pin a compatible build.
+
+On compatible legacy builds, Codex can still deliver an unreadable encrypted
+assignment from an OpenAI parent to a third-party-provider child. This
+component carries the assignment through a one-shot plaintext `SubagentStart`
+Hook. The workaround can be removed once upstream Codex restores both trusted
+cross-provider selection and reliable provider-neutral delivery. See
 [Why V2 needs the Hook](docs/advanced.en.md#why-v2-needs-the-hook).
 
-## Install
+## Legacy install
 
 ### 1. Configure the DeepSeek API key
 

@@ -2,14 +2,27 @@
 
 # mixagents
 
-This repository contains two independent agent integrations. They solve
-different problems and can be installed separately.
+This repository contains three independently installable agent packages.
+
+## MixAgents Broker
+
+Run Codex subagents on other model providers without changing the controller's
+provider. The npm package is
+[`mixagents-broker`](https://www.npmjs.com/package/mixagents-broker) and is
+installed through the MixAgents marketplace:
+
+```bash
+codex plugin marketplace add Utopia-V/mixagents
+codex plugin add mixagents-broker@mixagents
+```
+
+[Installation, configuration, and implementation](packages/broker/README.md) ·
+[简体中文](packages/broker/README.zh-CN.md) · [Security](packages/broker/SECURITY.md)
 
 ## Codex DeepSeek Subagent
 
-Keep the Codex parent on OpenAI while delegating bounded, text-heavy work to a
-`deepseek-v4-flash` child. The current release uses a one-shot plaintext Hook to
-work around unreadable cross-provider child assignments in Codex.
+Legacy DeepSeek subagent integration for compatible Codex `0.148.x` and older
+releases. Use MixAgents Broker on Codex `0.149.0` and later.
 
 [Install and use](packages/codex-deepseek-subagent/README.en.md) ·
 [Advanced notes](packages/codex-deepseek-subagent/docs/advanced.en.md) ·
@@ -29,13 +42,11 @@ after the first valid response. On one frozen Project2 task, default Pi scored
 
 ## Before installing
 
-Both integrations send task content to a third-party provider configured by the
-user. The Codex integration briefly stores a plaintext assignment in local user
-state; the Pi package contributes a `str_replace_editor` that can read and write
-files. DeepSeek and OpenCode billing is separate from a ChatGPT/OpenAI
-subscription. See [SECURITY.md](SECURITY.md) for the repository-level boundary.
+These packages may send task content, file content, and tool results to a
+configured third-party provider. Provider billing is separate from a
+ChatGPT/OpenAI subscription. Read [SECURITY.md](SECURITY.md) before installing.
 
-Each integration keeps its source, tests, and documentation under `packages/`.
+Each package keeps its source, tests, and documentation under `packages/`.
 The root `prompts/` directory only preserves redirects for old raw URLs. See
 [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) for issue and contribution
 conventions.

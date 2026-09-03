@@ -1,0 +1,6 @@
+interface:
+  display_name: "Broker"
+  short_description: "Delegate work across configured model providers."
+  default_prompt: "Use $broker to delegate this task to the best configured provider route."
+policy:
+  allow_implicit_invocation: true
