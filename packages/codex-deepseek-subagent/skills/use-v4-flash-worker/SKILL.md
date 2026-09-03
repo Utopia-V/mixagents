@@ -1,11 +1,23 @@
 ---
 name: use-v4-flash-worker
-description: Use before spawning, continuing, or troubleshooting the opt-in DeepSeek-backed v4_flash_worker; contains its plaintext-Hook handoff, recovery, and data-boundary contract.
+description: Use only for an existing Codex 0.148.x-or-older DeepSeek-backed v4_flash_worker installation; contains the legacy plaintext-Hook handoff, recovery, and data-boundary contract. On Codex 0.149.0 or later, direct cross-provider work to MixAgents Broker instead.
 ---
 
-# Use V4 Flash Worker
+# Use V4 Flash Worker (legacy)
 
-## Use it only when it earns the context switch
+## Check compatibility first
+
+Read the active Codex version before staging an assignment or spawning a child.
+If it is `0.149.0` or later, stop without calling a provider and direct the user
+to [`mixagents-broker`](https://www.npmjs.com/package/mixagents-broker) and its
+[installation guide](https://github.com/Utopia-V/mixagents/tree/main/packages/broker).
+If the version cannot be established, treat this native route as unqualified
+and do not dispatch it.
+
+Do not migrate the task to Broker automatically. The user must install and
+configure Broker before using its provider routes.
+
+## Select legacy work
 
 - Select Flash only when the user requests it or its provider-declared 1M
   context changes whether a bounded, preferably read-only reading task is

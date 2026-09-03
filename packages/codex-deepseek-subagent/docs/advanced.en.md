@@ -1,37 +1,36 @@
-[Back to quick install](../README.en.md) · [简体中文](advanced.md)
+[Back to package README](../README.en.md) · [简体中文](advanced.md)
 
-# Advanced notes
+# Advanced notes (legacy)
 
-This page is for users who want to inspect the implementation, change the
-compatibility strategy, or contribute platform evidence. To install and use the
-worker, follow the [three-step README](../README.en.md).
+This document records the custom Agent, plaintext Hook, and DeepSeek route used
+by compatible Codex `0.148.x` and older releases. Codex `0.149.0` and later no
+longer support this cross-provider route.
 
-> **Compatibility scope:** this document records the qualified legacy design.
-> Codex `0.149.0` and later inherit the parent's model provider before the Hook
-> can run, so present-tense runtime descriptions below apply only to compatible
-> builds unless a section explicitly discusses current upstream behavior.
+Use MixAgents Broker on current releases:
 
-## Composition boundary
+```bash
+codex plugin marketplace add Utopia-V/mixagents
+codex plugin add mixagents-broker@mixagents
+```
 
-The main task keeps its current OpenAI model, provider, and ChatGPT login.
+See the [Broker README](../../broker/README.md) for installation and
+configuration. The rest of this document describes only the legacy
+implementation and its historical compatibility evidence.
+
+## Legacy composition boundary
+
+The main task keeps its selected OpenAI model, provider, and ChatGPT login.
 DeepSeek exists only inside the standalone `v4_flash_worker` child session
 configuration. Codex still owns child creation, identity, permissions,
 lifecycle, cancellation, waiting, and callbacks. The repository uses one
 trusted `SubagentStart` Hook only to replace the currently unreliable cross-
 provider task carrier.
 
-This is not a plugin, MCP server, wrapper, daemon, separate agent application,
-another Codex CLI, or a global provider switch such as CC Switch.
+## Legacy provider/model adaptations
 
-## Adapting another provider/model
-
-Using different provider/model pairs for the main task and child is a general
-Codex composition capability, not a DeepSeek exception. Codex loads each
-standalone custom-agent TOML as configuration for the spawned session, so it
-can override model and provider settings supported by a normal session. Codex
-also officially permits any model/provider pair that supports the Responses or
-Chat Completions API. Because Chat Completions support is deprecated and will
-be removed, new adaptations should prefer Responses.
+Compatible releases allowed a standalone custom-agent TOML to override the
+spawned session's model and provider. Codex `0.149.0` and later no longer meet
+that prerequisite; configure new cross-provider routes in Broker.
 
 A new provider/model pair must satisfy at least these conditions:
 
@@ -180,7 +179,7 @@ The default `env_key` route depends on `ProcessEnvPresent`.
 `UserScopePresent` only explains the optional command-auth behavior and does not
 prove that the Codex provider can read the value.
 
-## Autonomous routing and context cost
+## Legacy routing and context cost
 
 Installing the custom agent makes it discoverable; it does not force parents to
 use it. Personal `AGENTS.md` keeps only a two-rule `$use-v4-flash-worker` index.
@@ -191,11 +190,11 @@ reading work that produces much more raw material than useful final evidence.
 Keep tightly coupled reasoning, consequential decisions, verification, and
 final integration in the parent. Use a multimodal worker for image understanding.
 
-## Why V2 currently needs the Hook
+## Why V2 needed the Hook
 
 Ideal Multi-agent V2 semantics let the parent place a self-contained assignment
 in `spawn_agent.message` without giving the child root-task history. On the
-current OpenAI-parent to non-OpenAI custom-child route, however, the parent may
+affected OpenAI-parent to non-OpenAI custom-child route, however, the parent may
 produce provider-internal ciphertext for the collaboration argument. Codex
 creates the correct DeepSeek child, but its visible `Payload:` is empty and the
 task exists only as `encrypted_content` that DeepSeek cannot interpret.
@@ -220,7 +219,7 @@ This is a representation failure for the task contract at the cross-provider
 boundary, not a failure of the DeepSeek model, Responses API, agent discovery,
 or native callback.
 
-## Preferred route: one-shot plaintext handoff
+## Legacy route: one-shot plaintext handoff
 
 `$use-v4-flash-worker` executes this protocol:
 
@@ -285,15 +284,12 @@ history expands the DeepSeek data boundary and identity ambiguity; it does not
 turn a missing V2 message into plaintext and is not an autonomous-delegation
 fallback.
 
-## Upstream migration condition
+## Legacy retirement condition
 
-Once Codex can represent an OpenAI parent's spawn assignment and essential
-follow-ups as provider-neutral plaintext before invoking an external child
-provider while preserving truthful identity, permissions, cancellation, and
-callback semantics, this repository will restore native collaboration messages
-as the preferred route. The Hook will remain only for a defined legacy-build
-window and will be removed when the minimum supported version contains that
-semantic.
+This package retains the legacy Hook and protocol implementation. If Codex
+restores reliable per-child provider selection, Broker will qualify the native
+backend and apply it only to newly created agents. This package will not return
+as the current installation path.
 
 ## External references
 

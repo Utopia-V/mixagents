@@ -23,6 +23,8 @@ def load(relative: str):
 
 def check_common(agent: dict):
     assert agent["name"] == "v4_flash_worker"
+    assert "Legacy DeepSeek V4 Flash worker" in agent["description"]
+    assert "Codex 0.149.0 or later" in agent["description"]
     assert agent["model_provider"] == "deepseek"
     assert agent["model"] == "deepseek-v4-flash"
     assert agent["model_context_window"] == 1_000_000
@@ -83,6 +85,7 @@ assert "former command-auth template remains an explicit compatibility option" i
 assert "On Windows, fully\n    restart Codex first" in installer
 assert "On Windows, use agents/windows-live-env/v4-flash-worker.toml" not in installer
 assert "If the version is `0.149.0` or later, stop before changing any file" in installer
+assert "codex plugin add mixagents-broker@mixagents" in installer
 for source_path in (
     "packages/codex-deepseek-subagent/skills/use-v4-flash-worker",
     "packages/codex-deepseek-subagent/hooks/plaintext-handoff.ps1",
@@ -128,8 +131,35 @@ for prompt_name in (
         f"packages/codex-deepseek-subagent/prompts/{prompt_name}"
     )
     assert canonical_url in legacy
+    assert "mixagents-broker" in legacy
 
 quick_smoke = (ROOT / "prompts/quick-smoke-test.md").read_text(encoding="utf-8")
 assert "If it is `0.149.0` or later, make no provider" in quick_smoke
+
+for relative in (
+    "prompts/smoke-test.md",
+    "prompts/message-handoff-probe.md",
+):
+    prompt = (ROOT / relative).read_text(encoding="utf-8")
+    assert "0.149.0" in prompt
+    assert "MixAgents Broker" in prompt
+    assert "stop without" in prompt
+
+runtime_skill = (ROOT / "skills/use-v4-flash-worker/SKILL.md").read_text(
+    encoding="utf-8"
+)
+assert "If it is `0.149.0` or later, stop without calling a provider" in runtime_skill
+assert "mixagents-broker" in runtime_skill
+
+agent_index = (ROOT / "snippets/AGENTS.md").read_text(encoding="utf-8")
+assert "legacy route for Codex `0.148.x` and older" in agent_index
+assert "use `$broker` from `mixagents-broker`" in agent_index
+
+for relative in (
+    "hooks/hooks.posix.example.json",
+    "hooks/hooks.windows.example.json",
+):
+    hook = (ROOT / relative).read_text(encoding="utf-8")
+    assert "Legacy one-shot plaintext handoff" in hook
 
 print("agent template checks passed")

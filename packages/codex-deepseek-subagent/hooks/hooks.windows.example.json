@@ -1,5 +1,5 @@
 {
-  "description": "One-shot plaintext task handoff for the DeepSeek-backed v4_flash_worker.",
+  "description": "Legacy one-shot plaintext handoff for v4_flash_worker on Codex 0.148.x and older.",
   "hooks": {
     "SubagentStart": [
       {

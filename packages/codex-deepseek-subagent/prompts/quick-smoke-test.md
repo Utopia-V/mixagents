@@ -1,12 +1,13 @@
-# Quick smoke test
+# Legacy quick smoke test
 
 Run this from any new Codex task after the Hook has been reviewed and trusted.
 No repository checkout is required. The test makes one small paid DeepSeek API
 request. Do not run it on Codex `0.149.0` or later; that release line cannot use
-this native cross-provider child.
+this native cross-provider child. Use
+[`mixagents-broker`](https://www.npmjs.com/package/mixagents-broker) instead.
 
 ```text
-Test the installed DeepSeek Flash subagent through the recommended native Hook
+Test the installed DeepSeek Flash subagent through the legacy native Hook
 path. Do not ask me for an API key or display its value.
 
 1. Check the active Codex version. If it is `0.149.0` or later, make no provider

@@ -1,31 +1,31 @@
-[返回快速安装](../README.md) · [English](advanced.en.md)
+[返回 package README](../README.md) · [English](advanced.en.md)
 
-# 高级说明
+# 高级说明（旧版）
 
-本页面向希望检查实现、调整兼容策略或贡献平台证据的用户。只想安装和使用时，
-按 [README 三步流程](../README.md) 即可。
+本文记录 Codex `0.148.x` 及更早兼容版本中的 custom Agent、plaintext Hook 和
+DeepSeek route。Codex `0.149.0` 起不再支持这条跨 provider 路径。
 
-> **兼容范围：** 本文记录已经验证的旧版设计。Codex `0.149.0` 及以后会在 Hook
-> 运行前让 child 继承 parent provider；除非章节明确讨论当前上游行为，下文使用现在时的
-> 运行描述只适用于兼容版本。
+当前版本使用 MixAgents Broker：
 
-## 组合边界
+```bash
+codex plugin marketplace add Utopia-V/mixagents
+codex plugin add mixagents-broker@mixagents
+```
+
+安装和配置见 [Broker README](../../broker/README.zh-CN.md)。下文只描述旧版实现与历史
+兼容证据。
+
+## 旧版组合边界
 
 主任务继续使用现有 OpenAI 模型、provider 和 ChatGPT 登录。DeepSeek 只存在于
 独立的 `v4_flash_worker` child session 配置中。Codex 仍然原生管理 child 的创建、
 身份、权限、生命周期、取消、等待和 callback；仓库只用一个受信任的
-`SubagentStart` Hook 替换当前不可靠的跨 provider 任务载体。
+`SubagentStart` Hook 替换这些旧版中不可靠的跨 provider 任务载体。
 
-它不是插件、MCP Server、wrapper、daemon、独立 Agent 应用或另一个 Codex CLI，
-也不要求 CC Switch 一类全局 provider 切换工具。
+## 旧版 provider/model 适配
 
-## 适配其他 provider/model
-
-“主任务与 child 使用不同 provider/model”是 Codex 的通用组合能力，不是 DeepSeek
-特例。Codex 将每个独立 custom-agent TOML 作为 spawned session 的配置层，因此它
-可以覆盖普通 session 支持的模型与 provider 设置。Codex 官方也允许指向任何支持
-Responses 或 Chat Completions API 的模型/provider；由于 Chat Completions 支持已经
-标记为将来移除，新的适配应优先使用 Responses。
+兼容版本允许独立 custom-agent TOML 覆盖 spawned session 的 model 和 provider。
+Codex `0.149.0` 及以后不再具备这个前提；新的跨供应商 route 应配置在 Broker 中。
 
 一个新的 provider/model 组合至少需要满足：
 
@@ -55,7 +55,7 @@ Hook matcher、脚本中的 role、skill、`AGENTS.md` 索引与 smoke 验收条
 | 日期 | Windows live 基线 `2026-08-05`；Windows/POSIX 加固 `2026-08-08`；Windows `env_key` 对照 `2026-08-12` |
 
 Windows Desktop 路径已有 OpenAI parent → DeepSeek child → native callback 基线；
-当前 PowerShell 加固实现通过本地协议、并发与恢复测试，尚待更新后的 live smoke。
+该 PowerShell 加固实现通过本地协议、并发与恢复测试，尚待更新后的 live smoke。
 [Issue #6](https://github.com/Utopia-V/mixagents/issues/6) 的受控对照进一步
 确认：Windows Desktop 继承 `env_key` 后 child/callback 成功，而同一 Agent 的
 User/HKCU command auth 在 sandbox identity 下不可用。
@@ -150,7 +150,7 @@ Codex Desktop，使新进程真正继承 `DEEPSEEK_API_KEY`。
 默认 `env_key` 路径看 `ProcessEnvPresent`；`UserScopePresent` 只用于解释可选 command
 auth 的行为。不要把后者为真当作 Codex provider 一定可读的证明。
 
-## 自主路由与上下文成本
+## 旧版路由与上下文成本
 
 安装 custom agent 只让它可被发现，并不强迫父 Agent 使用它。个人
 `AGENTS.md` 只保留两条 `$use-v4-flash-worker` 索引；完整协议在父 Agent 真正考虑
@@ -183,7 +183,7 @@ parent 仍可能先生成 ciphertext。因此包含该修复的版本仍可复�
 这是任务合同跨 provider 边界时的表示问题，不是 DeepSeek 模型、Responses API、
 Agent discovery 或 native callback 本身失败。
 
-## 首选路径：一次性 plaintext handoff
+## 旧版路径：一次性 plaintext handoff
 
 `$use-v4-flash-worker` 执行以下协议：
 
@@ -198,9 +198,9 @@ Agent discovery 或 native callback 本身失败。
 exclusive file handle。锁只覆盖 stage、claim、交付输出与消费，已启动的 worker
 仍可并发运行。损坏 claim 会被 quarantine 并阻塞后续 stage；TTL 只恢复结构有效的
 pending 或无存活 holder 的过期 claim。stage 失败后绝不能 spawn，只有状态明确清除
-并重新 stage 成功后才可创建 child。当前 V2 `send_message` / `followup_task` 可能遇到
-同一加密边界，因此每个 Flash child 承担一个自洽 job；关键任务发生变化时创建新
-child，而不是依赖 follow-up。
+并重新 stage 成功后才可创建 child。这些 V2 build 的 `send_message` /
+`followup_task` 可能遇到同一加密边界，因此每个 Flash child 承担一个自洽 job；关键
+任务发生变化时创建新 child，而不是依赖 follow-up。
 
 assignment 会短暂以 plaintext 存在于本地用户状态，并随后发送给 DeepSeek。Hook
 是 transport compatibility layer，不是机密通道。默认状态位置与威胁边界见
@@ -234,12 +234,11 @@ V1 不走受影响的 V2 encrypted collaboration path，因此可作为显式 wo
 增加继承量只会扩大 DeepSeek 数据边界和身份混淆面，不会把缺失的 V2 message
 变成 plaintext，因此不是自主委派 fallback。
 
-## 上游迁移条件
+## 旧方案退役条件
 
-当 Codex 能在调用外部 child provider 前，把 OpenAI parent 的 spawn assignment
-和必要 follow-up 可靠表示为 provider-neutral plaintext，并保持真实的 child 身份、
-权限、取消与 callback 语义，本仓库会恢复原生 collaboration message 为首选。
-Hook 只在明确的旧版本窗口保留，并在最低支持版本覆盖该语义后移除。
+这个 package 继续保留旧版 Hook 与协议实现。Codex 将来恢复可靠的 per-child provider
+选择后，由 Broker 重新验证 native backend，并只让新 Agent 使用通过验证的路径；旧
+package 不再恢复为当前安装入口。
 
 ## 外部资料
 

@@ -1,4 +1,4 @@
 interface:
-  display_name: "Use V4 Flash Worker"
-  short_description: "One-shot native handoff to DeepSeek Flash"
-  default_prompt: "Use $use-v4-flash-worker to delegate this bounded task through the installed plaintext Hook."
+  display_name: "Use V4 Flash Worker (Legacy)"
+  short_description: "Legacy DeepSeek child for Codex 0.148.x and older"
+  default_prompt: "Use $use-v4-flash-worker only after confirming this is a compatible legacy Codex build."

@@ -1,11 +1,20 @@
 # Install with Codex
 
-Copy the prompt below into Codex. It installs a personal custom subagent, its
-lazy-loaded handoff skill, and its one-shot plaintext task Hook while preserving
-the current OpenAI main-agent model and provider.
+This installer is retained for compatible Codex `0.148.x` and older builds.
+On Codex `0.149.0` or later, install MixAgents Broker:
 
-This installer is retained only for Codex `0.148.x` and earlier compatible
-builds. On Codex `0.149.0` or later, use MixAgents Broker instead.
+```bash
+codex plugin marketplace add Utopia-V/mixagents
+codex plugin add mixagents-broker@mixagents
+```
+
+See the [Broker README](../../broker/README.md) for configuration.
+
+## Legacy installer
+
+Copy the prompt below into a compatible Codex build. It installs a personal
+custom subagent, its handoff Skill, and its one-shot plaintext task Hook while
+preserving the current main-agent model and provider.
 
 ```text
 Install the native DeepSeek V4 Flash custom subagent from the
@@ -43,8 +52,9 @@ Procedure:
    CODEX_HOME; otherwise use ~/.codex. Check `codex --version` when available.
    If the version is `0.149.0` or later, stop before changing any file, report
    that this legacy cross-provider path is incompatible, and point to
-   `packages/broker/README.md`; do not downgrade Codex. On an earlier compatible
-   build, recommend Codex CLI `0.145.0` or newer, but do not upgrade software
+   https://github.com/Utopia-V/mixagents/tree/main/packages/broker; do not
+   downgrade Codex. On an earlier compatible build, recommend Codex CLI
+   `0.145.0` or newer, but do not upgrade software
    unless I separately ask. Use the current repository checkout as the source
    when one is available. Otherwise acquire one temporary source snapshot from
    GitHub for this installation, verify that its remote is this repository, and
@@ -191,7 +201,7 @@ Procedure:
     testing local tool access.
 ```
 
-The installed Hook is the preferred Multi-agent V2 task carrier for this
-component. Multi-agent V1 remains an explicit top-level compatibility choice,
-not an installer fallback and not a per-spawn setting; see
+On compatible builds, the installed Hook is the package's Multi-agent V2 task
+carrier. Multi-agent V1 remains an explicit top-level compatibility choice,
+not an installer fallback or per-spawn setting; see
 `packages/codex-deepseek-subagent/docs/advanced.en.md` for its trade-offs.

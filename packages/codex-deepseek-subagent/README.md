@@ -1,24 +1,30 @@
 [仓库索引](../../README.md) · [English](README.en.md) ·
 [高级说明](docs/advanced.md) · [安全说明](SECURITY.md)
 
-# Codex DeepSeek Subagent
+# Codex DeepSeek Subagent（旧版）
 
-让 Codex 主任务继续使用 OpenAI，把边界明确、以文本为主的大批量阅读、搜索、日志和整理
-任务交给 `deepseek-v4-flash` 子代理。是否委派仍由 Codex Parent 决定；安装不会更换主
-任务的 model、provider 或 ChatGPT 登录。
+这个 package 只保留给 Codex `0.148.x` 及更早的兼容版本。Codex `0.149.0` 起，custom
+child 会继承 parent 的 `model_provider`，原来的 OpenAI parent → DeepSeek child 路径
+已经不可用。
 
-> **兼容状态：** 此路径的 live 基线为 Codex CLI `0.146.0`。Codex `0.149.0` 起会让
-> child 继承 parent 的 `model_provider`，因此当前版本无法形成 OpenAI parent →
-> DeepSeek child。见 [Issue #9](https://github.com/Utopia-V/mixagents/issues/9) 和
-> [openai/codex#40858](https://github.com/openai/codex/issues/40858)。
-> 当前 Codex 的跨供应商路线见 [MixAgents Broker](../broker/README.zh-CN.md)。
+当前版本使用 [`mixagents-broker`](https://www.npmjs.com/package/mixagents-broker)：
 
-Codex `0.149.0` 及以后不要继续安装本组件；改用 `mixagents-broker`。旧版安装说明保留给
-仍固定在兼容终端上的现有用户。
+```bash
+codex plugin marketplace add Utopia-V/mixagents
+codex plugin add mixagents-broker@mixagents
+```
 
-在兼容旧版中，Codex 仍可能在 OpenAI Parent 与第三方 provider child 之间交付不可读的
-加密任务。本组件用一次性 plaintext `SubagentStart` Hook 传递 assignment；上游同时
-恢复可信的跨 provider 选择和 provider-neutral 传输后，这层 workaround 可以删除。技术背景见
+安装和配置见 [MixAgents Broker README](../broker/README.zh-CN.md)。上游问题见
+[Issue #9](https://github.com/Utopia-V/mixagents/issues/9) 和
+[openai/codex#40858](https://github.com/openai/codex/issues/40858)。
+
+## 旧版说明
+
+在兼容版本中，本组件让 Codex 主任务继续使用 OpenAI，把边界明确、以文本为主的任务
+交给 `deepseek-v4-flash` 子代理。
+
+Codex 可能在 OpenAI Parent 与第三方 provider child 之间交付不可读的加密任务。本组件
+用一次性 plaintext `SubagentStart` Hook 传递 assignment。技术背景见
 [高级说明](docs/advanced.md#为什么-v2-需要-hook)。
 
 ## 旧版安装

@@ -1,18 +1,24 @@
-# Native runtime smoke test
+# Legacy native runtime smoke test
 
-Run this from a new Codex task whose workspace is this repository, after the
-custom agent and the one-shot `SubagentStart` Hook have been installed and
-trusted. This test verifies the complete recommended path: Hook delivery,
+Run this only on a compatible Codex `0.148.x` or older build, from a new task
+whose workspace is this repository, after the custom agent and the one-shot
+`SubagentStart` Hook have been installed and trusted. Codex `0.149.0` and later
+must use [MixAgents Broker](../../broker/README.md).
+
+This test verifies the complete legacy path: Hook delivery,
 custom-agent discovery, native child creation, DeepSeek authentication, a local
 read-only tool call, and the native completion callback.
 
 ```text
 Run the repository's native DeepSeek subagent smoke test.
 
-1. As the root agent, generate a fresh unpredictable marker locally. Do not put
+1. Check the active Codex version. If it is `0.149.0` or later, make no provider
+   call and stop with the MixAgents Broker migration path. If the version cannot
+   be established, stop without running the smoke test.
+2. As the root agent, generate a fresh unpredictable marker locally. Do not put
    the marker or the child assignment in user-visible commentary, the spawn
    message, or any repository file.
-2. Build this complete child assignment in parent-owned local execution state:
+3. Build this complete child assignment in parent-owned local execution state:
    - You are the spawned v4_flash_worker child, not the root agent.
    - Read packages/codex-deepseek-subagent/fixtures/smoke-input.txt from the
      current repository with an available
@@ -22,7 +28,7 @@ Run the repository's native DeepSeek subagent smoke test.
    - Return the fresh marker exactly once.
    - State whether you changed any file.
    - Do not spawn another agent or continue unrelated root work.
-3. Pipe that assignment through stdin to the installed handoff script in stage
+4. Pipe that assignment through stdin to the installed handoff script in stage
    mode:
    - Windows: <codex-home>/hooks/codex-deepseek-subagent/plaintext-handoff.ps1
      -Mode stage
@@ -30,14 +36,14 @@ Run the repository's native DeepSeek subagent smoke test.
      <codex-home>/hooks/codex-deepseek-subagent/plaintext_handoff.py --mode stage
    Require a successful JSON result naming agent_type v4_flash_worker. Do not
    print the assignment or marker merely to stage it.
-4. Immediately use Codex's native subagent mechanism to spawn the exact agent
+5. Immediately use Codex's native subagent mechanism to spawn the exact agent
    type v4_flash_worker with a unique task name and fork_turns="none". Its spawn
    message may say only that it must execute the assignment supplied by the
    trusted one-shot SubagentStart Hook. The spawn message must not carry the
    marker or the fixture instructions.
-5. Do not solve the fixture task yourself. Wait idly through the native callback;
+6. Do not solve the fixture task yourself. Wait idly through the native callback;
    do not short-poll, send follow-up messages, or duplicate the child's work.
-6. If staging, Hook trust, Hook execution, native spawn, agent discovery,
+7. If staging, Hook trust, Hook execution, native spawn, agent discovery,
    authentication, the provider request, child task visibility, or callback
    fails, report that exact boundary and stop. Do not retry through inherited
    turns or another transport.

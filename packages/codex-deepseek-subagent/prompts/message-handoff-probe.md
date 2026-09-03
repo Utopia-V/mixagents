@@ -1,15 +1,21 @@
-# Optional raw V2 message-only handoff probe
+# Historical V2 message-only handoff probe
 
-This diagnostic intentionally bypasses the repository's recommended Hook. It
-tests one narrow upstream Codex transport property: whether the current host can
-deliver a task that exists only in a Multi-agent V2 collaboration message from
-an OpenAI parent to the DeepSeek-backed child.
+This diagnostic applies only to compatible Codex `0.148.x` and older builds.
+Codex `0.149.0` and later inherit the parent provider before this transport can
+be tested; use [MixAgents Broker](../../broker/README.md) for current
+cross-provider work.
+
+The probe bypasses the repository's legacy Hook and tests whether a task carried
+only by a Multi-agent V2 collaboration message reaches the DeepSeek-backed child.
 
 Run it only while diagnosing a Codex transport change. Do not use it as the
 installation smoke test, an ordinary-delegation preflight, or a reason to vary
 routing on every child call.
 
 ```text
+Check the active Codex version. If it is `0.149.0` or later, or cannot be
+established, stop without spawning a child or calling a provider.
+
 Use Codex's native subagent mechanism to spawn the custom agent whose exact
 agent type is v4_flash_worker.
 
@@ -39,6 +45,5 @@ OpenAI-parent path when the model has already produced ciphertext. See
 [openai/codex#36376](https://github.com/openai/codex/issues/36376) and
 [openai/codex#34833](https://github.com/openai/codex/issues/34833).
 
-The recommended runtime smoke test therefore uses a trusted `SubagentStart`
-Hook to add the assignment as ordinary developer context and spawns with
-`fork_turns="none"`. Do not repeatedly rerun this raw probe before normal work.
+The legacy runtime smoke test uses a trusted `SubagentStart` Hook to add the
+assignment as ordinary developer context and spawns with `fork_turns="none"`.

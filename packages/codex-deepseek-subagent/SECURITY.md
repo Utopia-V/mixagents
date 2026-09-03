@@ -1,6 +1,11 @@
 [Repository security entry point](../../SECURITY.md)
 
-# Codex DeepSeek Subagent Security
+# Codex DeepSeek Subagent Security (legacy)
+
+This file applies to compatible Codex `0.148.x` and older installations of
+`codex-deepseek-subagent`. Codex `0.149.0` and later should use
+[`mixagents-broker`](../broker/README.md) and its separate
+[security boundary](../broker/SECURITY.md).
 
 ## API keys
 
@@ -19,13 +24,13 @@ child are sent through the configured external provider endpoint to the
 the child credential comes from the selected local environment or Keychain
 source and must never be staged in an assignment. A read-only sandbox limits filesystem mutation; it does not
 prevent disclosure through model input. Parent-session permission selections
-may also override a custom agent's sandbox default in current Codex releases.
+may also override a custom agent's sandbox default on compatible builds.
 
 Do not delegate private source, secrets, personal data, regulated data, or other sensitive material unless the user has accepted DeepSeek as a processor for that material.
 
 ## Plaintext handoff Hook
 
-The recommended V2 route uses a user-trusted `SubagentStart` command Hook. The
+The legacy V2 route uses a user-trusted `SubagentStart` command Hook. The
 parent stages one complete assignment in local user state; the Hook claims it
 for the next exact `v4_flash_worker` child and injects it as developer context.
 The assignment is therefore briefly present as plaintext on local disk before
@@ -66,6 +71,9 @@ make installation non-interactive.
 
 ## Cost and compatibility
 
-DeepSeek API use is billed separately from an OpenAI or ChatGPT subscription. The installation workflow deliberately makes no provider request. The smoke test makes a small paid API request only when the user explicitly runs it.
+DeepSeek API use is billed separately from an OpenAI or ChatGPT subscription.
+The legacy installation workflow makes no provider request. Its smoke test is
+available only on compatible Codex `0.148.x` and older builds and makes a small
+paid API request when explicitly requested.
 
 DeepSeek's Responses API is not a complete implementation of every OpenAI Responses feature. Consult the current compatibility table before depending on conversation state, background execution, storage, service tiers, or another advanced request field.
