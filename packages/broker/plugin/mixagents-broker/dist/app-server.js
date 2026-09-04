@@ -3,6 +3,7 @@ import { EventEmitter, once } from "node:events";
 import { chmod, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { buildProcessInvocation, resolveCodexProcess } from "./codex-process.js";
 import { BrokerError, errorMessage } from "./errors.js";
 import { JsonLinePeer, JsonRpcRemoteError } from "./jsonrpc.js";
 const RUNTIME_METADATA_FILE = "runtime.json";
@@ -10,6 +11,12 @@ const RUNTIME_CONFIG_FILE = "config.toml";
 const AGENT_PREFIX = "broker";
 function isRecord(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function environmentValue(environment, name) {
+    if (environment[name] || process.platform !== "win32") {
+        return environment[name];
+    }
+    return Object.entries(environment).find(([key, value]) => key.toLowerCase() === name.toLowerCase() && value)?.[1];
 }
 function stableValue(value) {
     if (Array.isArray(value)) {
@@ -147,10 +154,12 @@ function filteredChildEnvironment(route, runtimeDirectory, environment) {
         "VIRTUAL_ENV",
         "CONDA_PREFIX",
         "PKG_CONFIG_PATH",
+        "CODEX_MANAGED_PACKAGE_ROOT",
     ];
     for (const name of safeNames) {
-        if (environment[name]) {
-            result[name] = environment[name];
+        const value = environmentValue(environment, name);
+        if (value) {
+            result[name] = value;
         }
     }
     const credentialNames = [
@@ -158,8 +167,9 @@ function filteredChildEnvironment(route, runtimeDirectory, environment) {
         ...Object.values(route.envHttpHeaders),
     ];
     for (const name of credentialNames) {
-        if (environment[name]) {
-            result[name] = environment[name];
+        const value = environmentValue(environment, name);
+        if (value) {
+            result[name] = value;
         }
     }
     return result;
@@ -282,10 +292,12 @@ export class AppServerRuntime extends EventEmitter {
             "--disable",
             "plugins",
         ];
-        const child = spawn(this.spec.process.command, args, {
+        const invocation = buildProcessInvocation(this.spec.process, args, this.#environment);
+        const child = spawn(invocation.command, invocation.args, {
             env: filteredChildEnvironment(this.route, this.spec.directory, this.#environment),
             stdio: ["pipe", "pipe", "pipe"],
             windowsHide: true,
+            windowsVerbatimArguments: invocation.windowsVerbatimArguments,
         });
         this.#child = child;
         try {
@@ -293,7 +305,10 @@ export class AppServerRuntime extends EventEmitter {
         }
         catch (error) {
             this.#child = undefined;
-            throw new BrokerError("runtime_start_failed", `Cannot launch App Server for route ${this.route.id}: ${errorMessage(error)}`);
+            const windowsHint = process.platform === "win32"
+                ? " Configure codexBin in broker.json or MIXAGENTS_BROKER_CODEX_BIN with the full path to codex.exe."
+                : "";
+            throw new BrokerError("runtime_start_failed", `Cannot launch App Server for route ${this.route.id}: ${errorMessage(error)}.${windowsHint}`);
         }
         child.stderr.setEncoding("utf8");
         child.stderr.on("data", (chunk) => {
@@ -628,7 +643,7 @@ export class RuntimeManager {
     #runtimes = new Map();
     constructor(dataDir, codexBin, environment = process.env, processOverride) {
         this.#dataDir = dataDir;
-        this.#process = processOverride ?? { command: codexBin, prefixArgs: [] };
+        this.#process = processOverride ?? resolveCodexProcess(codexBin, environment);
         this.#environment = environment;
     }
     async forRoute(route, access) {

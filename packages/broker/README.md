@@ -84,6 +84,12 @@ Runtime state defaults to `~/.local/state/mixagents-broker` on Linux/macOS
 and `%LOCALAPPDATA%\MixAgents\Broker` on Windows. Use
 `MIXAGENTS_BROKER_DATA_DIR` to select another state directory.
 
+Broker normally resolves the Codex executable automatically. On Windows, an
+npm-managed installation is resolved to its matching native `codex.exe`
+instead of the `codex.cmd` or `codex.ps1` shim. If automatic resolution is not
+available, set the top-level `codexBin` field or
+`MIXAGENTS_BROKER_CODEX_BIN` to the full path of the Codex executable.
+
 ## Configure credentials
 
 The process that starts Codex must provide

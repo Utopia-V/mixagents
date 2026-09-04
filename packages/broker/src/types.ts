@@ -86,6 +86,7 @@ export interface RuntimeMetadata {
 export interface ProcessSpec {
   command: string;
   prefixArgs: string[];
+  launcher?: "windows-command-script";
 }
 
 export interface ThreadTurn {

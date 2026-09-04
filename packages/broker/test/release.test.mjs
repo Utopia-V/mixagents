@@ -13,12 +13,13 @@ async function readJson(file) {
 
 test("release metadata exposes one installable Broker plugin with aligned versions", async () => {
   const pluginRoot = path.join(packageRoot, "plugin", "mixagents-broker");
-  const [packageManifest, pluginManifest, runtimeManifest, marketplace] =
+  const [packageManifest, pluginManifest, runtimeManifest, marketplace, mcpConfig] =
     await Promise.all([
       readJson(path.join(packageRoot, "package.json")),
       readJson(path.join(pluginRoot, ".codex-plugin", "plugin.json")),
       readJson(path.join(pluginRoot, "package.json")),
       readJson(path.join(repositoryRoot, ".agents", "plugins", "marketplace.json")),
+      readJson(path.join(pluginRoot, ".mcp.json")),
     ]);
 
   assert.equal(packageManifest.version, pluginManifest.version);
@@ -40,10 +41,14 @@ test("release metadata exposes one installable Broker plugin with aligned versio
   assert.equal(entry.policy.installation, "AVAILABLE");
   assert.equal(entry.policy.authentication, "ON_INSTALL");
   assert.equal(entry.category, pluginManifest.interface.category);
+  assert.ok(
+    mcpConfig.mcpServers.broker.env_vars.includes("CODEX_MANAGED_PACKAGE_ROOT"),
+  );
 
   await access(path.join(pluginRoot, ".codex-plugin", "plugin.json"));
   await access(path.join(pluginRoot, ".mcp.json"));
   await access(path.join(pluginRoot, "README.md"));
   await access(path.join(pluginRoot, "skills", "broker", "SKILL.md"));
+  await access(path.join(pluginRoot, "dist", "codex-process.js"));
   await access(path.join(pluginRoot, "dist", "server.js"));
 });

@@ -15,6 +15,10 @@ import {
   materializeCredentialEnvironment,
   parseConfig,
 } from "../plugin/mixagents-broker/dist/config.js";
+import {
+  buildProcessInvocation,
+  resolveCodexProcess,
+} from "../plugin/mixagents-broker/dist/codex-process.js";
 
 const fixturePath = fileURLToPath(new URL("./fixtures/fake-codex.mjs", import.meta.url));
 
@@ -402,5 +406,75 @@ test("runtime config rendering is deterministic", () => {
   assert.notEqual(
     runtimeIdFor(route, "read-only"),
     runtimeIdFor({ ...route, model: "different-model" }, "read-only"),
+  );
+});
+
+test("Windows uses the native executable from the npm-managed Codex package", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "mixagents-codex-process-test-"));
+  try {
+    const managedRoot = path.join(root, "node_modules", "@openai", "codex");
+    const platformRoot = path.join(
+      managedRoot,
+      "node_modules",
+      "@openai",
+      "codex-win32-x64",
+    );
+    const executable = path.join(
+      platformRoot,
+      "vendor",
+      "x86_64-pc-windows-msvc",
+      "bin",
+      "codex.exe",
+    );
+    await mkdir(path.dirname(executable), { recursive: true });
+    await writeFile(path.join(managedRoot, "package.json"), '{"name":"@openai/codex"}\n');
+    await writeFile(
+      path.join(platformRoot, "package.json"),
+      '{"name":"@openai/codex-win32-x64"}\n',
+    );
+    await writeFile(executable, "fixture");
+
+    assert.deepEqual(
+      resolveCodexProcess(
+        "codex",
+        { CODEX_MANAGED_PACKAGE_ROOT: managedRoot },
+        { platform: "win32", arch: "x64" },
+      ),
+      { command: executable, prefixArgs: [] },
+    );
+    assert.deepEqual(
+      resolveCodexProcess(
+        "D:\\Tools\\Codex\\codex.exe",
+        { CODEX_MANAGED_PACKAGE_ROOT: managedRoot },
+        { platform: "win32", arch: "x64" },
+      ),
+      { command: "D:\\Tools\\Codex\\codex.exe", prefixArgs: [] },
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("Windows command shims use an explicit cmd invocation", () => {
+  assert.deepEqual(
+    buildProcessInvocation(
+      {
+        command: "C:\\Program Files\\Codex\\codex.cmd",
+        prefixArgs: [],
+        launcher: "windows-command-script",
+      },
+      ["app-server", "--stdio"],
+      { ComSpec: "C:\\Windows\\System32\\cmd.exe" },
+    ),
+    {
+      command: "C:\\Windows\\System32\\cmd.exe",
+      args: [
+        "/d",
+        "/s",
+        "/c",
+        '""C:\\Program Files\\Codex\\codex.cmd" app-server --stdio"',
+      ],
+      windowsVerbatimArguments: true,
+    },
   );
 });

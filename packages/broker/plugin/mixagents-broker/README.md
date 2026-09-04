@@ -52,6 +52,11 @@ Create `~/.config/mixagents/broker.json` on Linux/macOS or
 }
 ```
 
+Broker normally resolves the installed Codex executable automatically. On
+Windows, npm-managed installs use the matching native `codex.exe`. If it
+cannot be resolved, set the top-level `codexBin` field or
+`MIXAGENTS_BROKER_CODEX_BIN` to the full executable path.
+
 The process that starts Codex must provide
 `MIXAGENTS_BROKER_CREDENTIALS_JSON`:
 

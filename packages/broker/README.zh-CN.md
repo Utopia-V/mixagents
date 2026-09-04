@@ -79,6 +79,11 @@ codex plugin add mixagents-broker@mixagents
 Linux/macOS 默认位于 `~/.local/state/mixagents-broker`，在 Windows 默认位于
 `%LOCALAPPDATA%\MixAgents\Broker`；可用 `MIXAGENTS_BROKER_DATA_DIR` 修改。
 
+Broker 通常会自动解析 Codex 可执行文件。Windows 上通过 npm 安装的 Codex 会直接解析到
+同一版本自带的原生 `codex.exe`，不会把 `codex.cmd` 或 `codex.ps1` shim 当作可执行文件。
+无法自动解析时，在配置顶层设置 `codexBin`，或把
+`MIXAGENTS_BROKER_CODEX_BIN` 设为 Codex 可执行文件的完整路径。
+
 ## 配置凭据
 
 启动 Codex 的进程需要提供 `MIXAGENTS_BROKER_CREDENTIALS_JSON`。它是一个 JSON
