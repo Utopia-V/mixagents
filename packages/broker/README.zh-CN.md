@@ -52,9 +52,6 @@ codex plugin add mixagents-broker@mixagents
 ```json
 {
   "defaultRoute": "opencode-deepseek-flash",
-  "workspaceRoots": [
-    "/absolute/path/to/projects"
-  ],
   "routes": {
     "opencode-deepseek-flash": {
       "description": "用于审阅、提取和编码任务的快速 worker。",
@@ -72,8 +69,12 @@ codex plugin add mixagents-broker@mixagents
 }
 ```
 
-`workspaceRoots` 限定 Broker 可以使用的目录；MCP client 已提供 workspace roots 时，
-两者会合并。`maxAccess` 是 route 的权限上限，每次派发仍默认使用 `read-only`。
+`workspaceRoots` 是可选的固定目录预授权，并会与 MCP client 提供的 roots 合并。`cwd`
+不在这些目录内时，Broker 会在第一次派发前请求确认。确认后只在当前 MCP 连接内授权
+该目录的规范化真实路径及其子目录，不会写回配置。无法显示 MCP elicitation 的 client
+仍需显式配置 `workspaceRoots`。
+
+`maxAccess` 是 route 的权限上限，每次派发仍默认使用 `read-only`。
 
 用 `MIXAGENTS_BROKER_CONFIG` 可以指定其他绝对配置路径。runtime state 在
 Linux/macOS 默认位于 `~/.local/state/mixagents-broker`，在 Windows 默认位于
@@ -122,6 +123,9 @@ $broker 把这个提取任务交给已配置的低成本 worker。
 
 managed Agent 直接使用传入的 workspace。一次 turn 完成、失败或中断后，仍可在同一个
 Agent thread 中继续发送消息。
+
+`cwd` 应传入当前 workspace 的绝对路径。未预授权的 workspace 只有在 host 确认后才会
+使用；拒绝确认不会启动 worker。
 
 ## 技术实现
 

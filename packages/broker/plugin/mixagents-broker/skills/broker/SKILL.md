@@ -19,10 +19,13 @@ routes. Keep the controller's own model and provider unchanged.
    authorization before a paid or external-provider call.
 3. Build one self-contained assignment. Send only that assignment and context
    actually needed by the worker; do not copy the entire parent conversation.
-4. If the route reports `backend: native`, call Codex `spawn_agent` directly
+4. Pass the current workspace's absolute path as `cwd`. Broker uses a root
+   supplied by the host or configuration; for an unlisted workspace, let the
+   host present Broker's one-connection approval request.
+5. If the route reports `backend: native`, call Codex `spawn_agent` directly
    with the returned `nativeAgentType` and `fork_turns: "none"`. Otherwise call
    `mcp__broker__spawn_agent`.
-5. Continue useful independent work after spawning. Call the matching native
+6. Continue useful independent work after spawning. Call the matching native
    or Broker wait operation only when the result is needed.
 
 Never try native first when `routes` selected App Server. Never change the
@@ -51,4 +54,6 @@ ownership. Use a Codex worktree before dispatch when isolation is required.
 Provider definitions belong in local Broker configuration. Credentials come
 from the host process's secret environment, never configuration values, tool
 arguments, or assignments. Missing routes, credentials, permission, or host
-interaction fail explicitly.
+interaction fail explicitly. Never broaden `workspaceRoots` to a drive or home
+directory merely to avoid a workspace prompt. After a workspace request is
+declined or cancelled, do not retry it without new user direction.

@@ -389,22 +389,7 @@ export async function validateWorkspace(
   configuredRoots: string[],
   clientRoots: string[],
 ): Promise<string> {
-  if (!path.isAbsolute(cwdInput)) {
-    throw new BrokerError("invalid_workspace", "cwd must be an absolute path");
-  }
-  let cwd: string;
-  try {
-    cwd = await realpath(cwdInput);
-    const info = await stat(cwd);
-    if (!info.isDirectory()) {
-      throw new BrokerError("invalid_workspace", `${cwdInput} is not a directory`);
-    }
-  } catch (error) {
-    if (error instanceof BrokerError) {
-      throw error;
-    }
-    throw new BrokerError("invalid_workspace", `Cannot resolve cwd ${cwdInput}`);
-  }
+  const cwd = await resolveWorkspace(cwdInput);
 
   const roots = [...configuredRoots, ...clientRoots.map(rootPathFromInput)];
   const resolvedRoots: string[] = [];
@@ -418,7 +403,7 @@ export async function validateWorkspace(
   if (resolvedRoots.length === 0) {
     throw new BrokerError(
       "workspace_root_required",
-      "No usable workspace root was advertised; configure workspaceRoots in broker.json",
+      "No usable workspace root is authorized",
     );
   }
   if (!resolvedRoots.some((root) => isWithin(root, cwd))) {
@@ -427,8 +412,27 @@ export async function validateWorkspace(
       `cwd ${cwd} is outside the allowed workspace roots`,
     );
   }
-  await access(cwd, constants.R_OK);
   return cwd;
+}
+
+export async function resolveWorkspace(cwdInput: string): Promise<string> {
+  if (!path.isAbsolute(cwdInput)) {
+    throw new BrokerError("invalid_workspace", "cwd must be an absolute path");
+  }
+  try {
+    const cwd = await realpath(cwdInput);
+    const info = await stat(cwd);
+    if (!info.isDirectory()) {
+      throw new BrokerError("invalid_workspace", `${cwdInput} is not a directory`);
+    }
+    await access(cwd, constants.R_OK);
+    return cwd;
+  } catch (error) {
+    if (error instanceof BrokerError) {
+      throw error;
+    }
+    throw new BrokerError("invalid_workspace", `Cannot resolve or read cwd ${cwdInput}`);
+  }
 }
 
 export function requireRoute(config: BrokerConfig, routeId: string): RouteConfig {

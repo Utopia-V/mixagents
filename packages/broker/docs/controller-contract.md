@@ -91,8 +91,15 @@ Required input:
 
 - `route`: a configured route id;
 - `task`: a complete worker assignment;
-- `cwd`: an absolute working directory inside a root supplied by the Codex MCP
-  client or explicitly allowed in Broker's local configuration.
+- `cwd`: the current workspace's absolute working directory.
+
+Broker accepts `cwd` when its canonical path is inside a root supplied by the
+Codex MCP client or preauthorized in local configuration. Otherwise, when the
+client advertises MCP elicitation, Broker asks the host to approve that exact
+canonical directory. Approval covers the directory and its descendants for
+the current MCP connection and is not persisted. A decline, cancellation, or
+client without elicitation support fails before App Server or a provider is
+invoked.
 
 Optional `access` is `read-only` by default and may request
 `workspace-write`. It cannot exceed the route's configured maximum or the

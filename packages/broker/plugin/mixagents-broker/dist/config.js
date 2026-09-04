@@ -278,23 +278,7 @@ function isWithin(root, candidate) {
     return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
 }
 export async function validateWorkspace(cwdInput, configuredRoots, clientRoots) {
-    if (!path.isAbsolute(cwdInput)) {
-        throw new BrokerError("invalid_workspace", "cwd must be an absolute path");
-    }
-    let cwd;
-    try {
-        cwd = await realpath(cwdInput);
-        const info = await stat(cwd);
-        if (!info.isDirectory()) {
-            throw new BrokerError("invalid_workspace", `${cwdInput} is not a directory`);
-        }
-    }
-    catch (error) {
-        if (error instanceof BrokerError) {
-            throw error;
-        }
-        throw new BrokerError("invalid_workspace", `Cannot resolve cwd ${cwdInput}`);
-    }
+    const cwd = await resolveWorkspace(cwdInput);
     const roots = [...configuredRoots, ...clientRoots.map(rootPathFromInput)];
     const resolvedRoots = [];
     for (const root of roots) {
@@ -306,13 +290,32 @@ export async function validateWorkspace(cwdInput, configuredRoots, clientRoots) 
         }
     }
     if (resolvedRoots.length === 0) {
-        throw new BrokerError("workspace_root_required", "No usable workspace root was advertised; configure workspaceRoots in broker.json");
+        throw new BrokerError("workspace_root_required", "No usable workspace root is authorized");
     }
     if (!resolvedRoots.some((root) => isWithin(root, cwd))) {
         throw new BrokerError("workspace_denied", `cwd ${cwd} is outside the allowed workspace roots`);
     }
-    await access(cwd, constants.R_OK);
     return cwd;
+}
+export async function resolveWorkspace(cwdInput) {
+    if (!path.isAbsolute(cwdInput)) {
+        throw new BrokerError("invalid_workspace", "cwd must be an absolute path");
+    }
+    try {
+        const cwd = await realpath(cwdInput);
+        const info = await stat(cwd);
+        if (!info.isDirectory()) {
+            throw new BrokerError("invalid_workspace", `${cwdInput} is not a directory`);
+        }
+        await access(cwd, constants.R_OK);
+        return cwd;
+    }
+    catch (error) {
+        if (error instanceof BrokerError) {
+            throw error;
+        }
+        throw new BrokerError("invalid_workspace", `Cannot resolve or read cwd ${cwdInput}`);
+    }
 }
 export function requireRoute(config, routeId) {
     const route = config.routes.find((candidate) => candidate.id === routeId);

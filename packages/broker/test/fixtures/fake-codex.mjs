@@ -192,6 +192,8 @@ async function startTurn(thread, text) {
         unrelatedCredential: Boolean(process.env.UNRELATED_SECRET),
       });
       setTimeout(() => void complete(thread, turn, audit), 15);
+    } else if (text.includes("report cwd")) {
+      setTimeout(() => void complete(thread, turn, `cwd:${thread.cwd}`), 15);
     } else if (text.includes("crash after persist")) {
       setTimeout(() => {
         void persistCompletionWithoutNotification(

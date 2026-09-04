@@ -6,5 +6,6 @@ export declare function parseConfig(input: unknown, configPath: string, environm
 export declare function loadConfig(configPath?: string, environment?: NodeJS.ProcessEnv): Promise<BrokerConfig>;
 export declare function routeView(route: RouteConfig, config: BrokerConfig, environment?: NodeJS.ProcessEnv): RouteView;
 export declare function validateWorkspace(cwdInput: string, configuredRoots: string[], clientRoots: string[]): Promise<string>;
+export declare function resolveWorkspace(cwdInput: string): Promise<string>;
 export declare function requireRoute(config: BrokerConfig, routeId: string): RouteConfig;
 export declare function requireAccess(route: RouteConfig, requested: unknown): Access;

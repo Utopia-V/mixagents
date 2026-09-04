@@ -29,6 +29,10 @@
 - Default to read-only access. `workspace-write` must remain within both the
   route cap and host authority. A worker cannot expand either boundary through
   an approval request.
+- Treat configured and client-advertised workspace roots as preauthorization.
+  An unlisted canonical `cwd` may be approved through MCP elicitation only for
+  the current connection; never persist that grant or broaden it beyond the
+  approved directory and descendants.
 - Use the supplied workspace directly. Broker does not own worktree creation,
   merging, rebasing, diff handoff, or cleanup. The controller serializes
   overlapping writers and gives concurrent writers disjoint ownership.

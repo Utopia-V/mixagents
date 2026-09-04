@@ -1,6 +1,6 @@
 {
   "name": "mixagents-broker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Run Codex subagents on configured model providers without switching the controller.",
   "author": {
     "name": "Utopia-V",

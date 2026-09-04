@@ -343,7 +343,7 @@ export class AppServerRuntime extends EventEmitter {
                 clientInfo: {
                     name: "mixagents_broker",
                     title: "MixAgents Broker",
-                    version: "0.1.0",
+                    version: "0.1.1",
                 },
                 capabilities: null,
             }, 15_000);

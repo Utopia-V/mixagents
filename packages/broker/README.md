@@ -55,9 +55,6 @@ Example:
 ```json
 {
   "defaultRoute": "opencode-deepseek-flash",
-  "workspaceRoots": [
-    "/absolute/path/to/projects"
-  ],
   "routes": {
     "opencode-deepseek-flash": {
       "description": "Fast worker for review, extraction, and coding tasks.",
@@ -75,9 +72,15 @@ Example:
 }
 ```
 
-`workspaceRoots` lists directories that Broker may use and is merged with any
-roots provided by the MCP client. `maxAccess` is the route's upper permission
-limit; each dispatch still defaults to `read-only`.
+`workspaceRoots` is optional. Its entries preauthorize fixed directories and
+are merged with roots provided by the MCP client. When `cwd` is outside those
+roots, Broker asks for confirmation before the first dispatch. Approval covers
+that canonical directory and its descendants for the current MCP connection;
+it is not written to configuration. Clients that cannot show MCP elicitation
+must configure `workspaceRoots` explicitly.
+
+`maxAccess` is the route's upper permission limit; each dispatch still defaults
+to `read-only`.
 
 Use `MIXAGENTS_BROKER_CONFIG` to select another absolute configuration path.
 Runtime state defaults to `~/.local/state/mixagents-broker` on Linux/macOS
@@ -133,6 +136,9 @@ provider. The parent conversation is not copied automatically.
 
 Managed agents use the supplied workspace. A completed, failed, or interrupted
 turn keeps the same agent thread available for follow-up input.
+
+Pass the current workspace's absolute path as `cwd`. An unlisted workspace is
+used only after the host approves it; declining the prompt starts no worker.
 
 ## Implementation
 

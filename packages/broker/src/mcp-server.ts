@@ -2,9 +2,15 @@ import type { JsonRpcId } from "./jsonrpc.js";
 import { JsonLinePeer } from "./jsonrpc.js";
 import { Broker } from "./broker.js";
 import { BrokerError, errorMessage } from "./errors.js";
-import type { JsonObject, JsonValue, ProcessSpec } from "./types.js";
+import { resolveWorkspace } from "./config.js";
+import type {
+  AgentSnapshot,
+  JsonObject,
+  JsonValue,
+  ProcessSpec,
+} from "./types.js";
 
-const SERVER_VERSION = "0.1.0";
+const SERVER_VERSION = "0.1.1";
 const PROTOCOL_VERSION = "2025-11-25";
 const SUPPORTED_PROTOCOL_VERSIONS = new Set([
   "2025-11-25",
@@ -78,7 +84,8 @@ const TOOLS: ToolDefinition[] = [
         },
         cwd: {
           type: "string",
-          description: "Absolute working directory inside an allowed workspace root.",
+          description:
+            "Absolute working directory. Broker uses a preauthorized root or asks the host to approve it for this connection.",
         },
         access: {
           type: "string",
@@ -208,10 +215,55 @@ function toolFailure(error: unknown): JsonObject {
   };
 }
 
+function isWorkspaceAuthorizationError(error: unknown): error is BrokerError {
+  return (
+    error instanceof BrokerError &&
+    (error.code === "workspace_root_required" || error.code === "workspace_denied")
+  );
+}
+
+function workspaceApprovalAccepted(result: unknown): boolean {
+  return (
+    isRecord(result) &&
+    result.action === "accept" &&
+    isRecord(result.content) &&
+    result.content.decision === "approve"
+  );
+}
+
+function waitForWorkspaceApproval(
+  request: Promise<unknown>,
+  signal: AbortSignal,
+): Promise<unknown> {
+  if (signal.aborted) {
+    return Promise.reject(
+      new BrokerError("spawn_cancelled", "spawn_agent was cancelled"),
+    );
+  }
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      reject(new BrokerError("spawn_cancelled", "spawn_agent was cancelled"));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    request.then(
+      (result) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(result);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 export class BrokerMcpServer {
   readonly #peer: JsonLinePeer;
   readonly #options: McpServerOptions;
   readonly #activeCalls = new Map<JsonRpcId, AbortController>();
+  readonly #approvedWorkspaceRoots = new Set<string>();
+  readonly #pendingWorkspaceApprovals = new Map<string, Promise<unknown>>();
   #broker: Broker | undefined;
   #clientCapabilities: UnknownRecord = {};
   #protocolVersion = PROTOCOL_VERSION;
@@ -241,6 +293,8 @@ export class BrokerMcpServer {
       controller.abort();
     }
     this.#activeCalls.clear();
+    this.#approvedWorkspaceRoots.clear();
+    this.#pendingWorkspaceApprovals.clear();
     await this.#broker?.close();
     this.#peer.close();
   }
@@ -274,7 +328,7 @@ export class BrokerMcpServer {
           version: SERVER_VERSION,
         },
         instructions:
-          "Use routes before dispatch. Broker keeps provider/model fixed and returns native-sized agent results.",
+          "Use routes before dispatch and pass an absolute cwd. Broker keeps provider/model fixed and returns native-sized agent results.",
       };
     }
     if (!this.#initialized) {
@@ -315,15 +369,7 @@ export class BrokerMcpServer {
         case "routes":
           return toolSuccess({ routes: broker.routes() });
         case "spawn_agent":
-          return toolSuccess(
-            await broker.spawnAgent({
-              route: args.route,
-              task: args.task,
-              cwd: args.cwd,
-              access: args.access,
-              clientRoots: await this.#clientRoots(),
-            }),
-          );
+          return toolSuccess(await this.#spawnAgent(broker, args, controller.signal));
         case "send":
           return toolSuccess(await broker.send(args.agentId, args.message));
         case "wait_agent":
@@ -368,6 +414,105 @@ export class BrokerMcpServer {
       delete params.mode;
     }
     return this.#peer.request("elicitation/create", params, 120_000);
+  }
+
+  async #spawnAgent(
+    broker: Broker,
+    args: UnknownRecord,
+    signal: AbortSignal,
+  ): Promise<AgentSnapshot> {
+    const advertisedRoots = await this.#clientRoots();
+    const clientRoots = [...advertisedRoots, ...this.#approvedWorkspaceRoots];
+    try {
+      return await broker.spawnAgent({
+        route: args.route,
+        task: args.task,
+        cwd: args.cwd,
+        access: args.access,
+        clientRoots,
+      });
+    } catch (error) {
+      if (!isWorkspaceAuthorizationError(error) || typeof args.cwd !== "string") {
+        throw error;
+      }
+      if (!this.#supportsElicitation()) {
+        throw new BrokerError(
+          error.code,
+          `${error.message}; this MCP client cannot request workspace approval, so configure workspaceRoots in broker.json`,
+        );
+      }
+
+      const cwd = await resolveWorkspace(args.cwd);
+      const approved = await this.#approveWorkspace(cwd, signal);
+      if (!approved) {
+        throw new BrokerError(
+          "workspace_approval_declined",
+          `Workspace access was not approved for ${cwd}`,
+        );
+      }
+      if (signal.aborted) {
+        throw new BrokerError("spawn_cancelled", "spawn_agent was cancelled");
+      }
+      return broker.spawnAgent({
+        route: args.route,
+        task: args.task,
+        cwd,
+        access: args.access,
+        clientRoots: [...advertisedRoots, ...this.#approvedWorkspaceRoots],
+      });
+    }
+  }
+
+  async #approveWorkspace(cwd: string, signal: AbortSignal): Promise<boolean> {
+    if (this.#approvedWorkspaceRoots.has(cwd)) {
+      return true;
+    }
+    let request = this.#pendingWorkspaceApprovals.get(cwd);
+    if (!request) {
+      request = (async () => {
+        try {
+          return await this.#elicit({
+            mode: "form",
+            message:
+              "Allow MixAgents Broker to use this directory and its subdirectories as an agent workspace for this Codex connection?\n\n" +
+              `Workspace: ${cwd}\n\n` +
+              "The selected route and requested read-only or workspace-write access still apply.",
+            requestedSchema: {
+              type: "object",
+              properties: {
+                decision: {
+                  type: "string",
+                  title: "Workspace access",
+                  enum: ["approve", "decline"],
+                  enumNames: ["Allow for this connection", "Decline"],
+                },
+              },
+              required: ["decision"],
+            },
+          });
+        } catch (error) {
+          throw new BrokerError(
+            "workspace_approval_unavailable",
+            `Could not request workspace access for ${cwd}: ${errorMessage(error)}`,
+          );
+        }
+      })();
+      this.#pendingWorkspaceApprovals.set(cwd, request);
+      void request
+        .finally(() => {
+          if (this.#pendingWorkspaceApprovals.get(cwd) === request) {
+            this.#pendingWorkspaceApprovals.delete(cwd);
+          }
+        })
+        .catch(() => undefined);
+    }
+
+    const result = await waitForWorkspaceApproval(request, signal);
+    const approved = workspaceApprovalAccepted(result);
+    if (approved) {
+      this.#approvedWorkspaceRoots.add(cwd);
+    }
+    return approved;
   }
 
   async #clientRoots(): Promise<string[]> {

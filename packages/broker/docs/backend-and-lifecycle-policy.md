@@ -88,6 +88,13 @@ controller explicitly includes. It does not clone the parent conversation by
 default. The worker receives the requested `cwd`, loads applicable project
 instructions there, and observes the workspace's current state.
 
+Configured workspace roots are durable preauthorization. Roots advertised by
+the MCP client are host authority. If neither covers `cwd`, an
+elicitation-capable host may approve its canonical path for the current MCP
+connection. The grant covers that path and descendants, is not persisted, and
+is established before an App Server runtime or provider request starts.
+Decline, cancellation, or a host without elicitation fails closed.
+
 Agents use the current checkout. Broker does not create or manage worktrees.
 The controller owns parallel-write decomposition: concurrent writers receive
 disjoint scopes, overlapping writers run serially, and explicit isolation is

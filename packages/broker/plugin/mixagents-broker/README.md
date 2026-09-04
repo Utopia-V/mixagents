@@ -32,9 +32,6 @@ Create `~/.config/mixagents/broker.json` on Linux/macOS or
 ```json
 {
   "defaultRoute": "opencode-deepseek-flash",
-  "workspaceRoots": [
-    "/absolute/path/to/projects"
-  ],
   "routes": {
     "opencode-deepseek-flash": {
       "description": "Fast worker for review, extraction, and coding tasks.",
@@ -51,6 +48,12 @@ Create `~/.config/mixagents/broker.json` on Linux/macOS or
   }
 }
 ```
+
+`workspaceRoots` is optional. It preauthorizes fixed directories. Otherwise,
+pass the current workspace's absolute path as `cwd`; Broker asks for approval
+before its first use and remembers the canonical directory and descendants for
+the current MCP connection. Clients without MCP elicitation support must set
+`workspaceRoots` explicitly.
 
 Broker normally resolves the installed Codex executable automatically. On
 Windows, npm-managed installs use the matching native `codex.exe`. If it
@@ -79,6 +82,7 @@ most important findings.
 
 Broker reports the provider, model, and backend before dispatch. Only the
 assignment and explicitly included context are sent to the selected provider.
+Declining an unlisted workspace starts no worker.
 
 ## Implementation
 

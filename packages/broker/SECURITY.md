@@ -45,9 +45,14 @@ missing credential makes the route unavailable before dispatch.
 
 ## Workspace authority
 
-`cwd` must resolve inside a root advertised by the MCP client or explicitly
-allowed by local Broker configuration. Symlink resolution cannot escape that
-root.
+`cwd` is resolved to its canonical path. Broker accepts it inside a root
+advertised by the MCP client or preauthorized by local configuration. If no
+such root covers it, an elicitation-capable host may approve that exact
+canonical directory and its descendants for the current MCP connection. The
+grant is held only in memory and is not written to `broker.json` or runtime
+state. Decline, cancellation, or a host without elicitation starts no worker.
+Changing a symlink after approval cannot redirect the dispatch to another
+directory.
 
 This containment controls which workspace Broker may select; it is not by
 itself a read-confidentiality boundary. The stable Codex read-only sandbox may
@@ -75,7 +80,9 @@ relays a non-secret request through host-supported MCP elicitation only while
 an associated call is active. If the host cannot present it, Broker declines
 the request. Elicitation must never request passwords, API keys, access tokens,
 or payment information, and it cannot widen the configured route or access
-boundary.
+boundary. Workspace confirmation changes only which canonical directory may be
+selected during that MCP connection; it does not increase the route's access
+class or authorize a provider/model dispatch.
 
 ## Interruption and recovery
 
