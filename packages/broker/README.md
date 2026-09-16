@@ -43,6 +43,46 @@ codex plugin add mixagents-broker@mixagents
 
 Start a new Codex task after installation.
 
+### Coexisting with cc-switch
+
+Every time cc-switch switches a Codex provider, it regenerates
+`~/.codex/config.toml` from the selected provider's fields, its common config
+snippet, and the MCP servers cc-switch manages. Anything else in `config.toml`,
+including plugin and marketplace registration, is gone after a switch — Codex no
+longer knows the plugin and it has to be installed again.
+
+Keep the registration by adding both blocks below to cc-switch's Codex common
+config snippet:
+
+```toml
+[marketplaces.mixagents]
+source_type = "git"
+source = "https://github.com/Utopia-V/mixagents.git"
+
+[plugins."mixagents-broker@mixagents"]
+enabled = true
+```
+
+Then tick "apply common config" (应用通用配置) for every Codex provider: the
+checkbox sits at the top right of the `config.toml` editor in the provider
+dialog, next to the "edit common config" (编辑通用配置) link that opens the
+snippet. A provider without the checkbox does not receive the snippet on a
+switch, and the plugin registration is still lost. cc-switch's own guidance says
+the same: after installing a plugin or hook, sync the common config again.
+
+After a switch, `codex plugin list` confirms the registration. If it is really
+gone, run these in order:
+
+```bash
+codex plugin marketplace remove mixagents
+codex plugin marketplace add Utopia-V/mixagents
+codex plugin add mixagents-broker@mixagents
+```
+
+The first command is required: a stale marketplace copy makes `add` fail with
+"already added from a different source". Start a new Codex task afterwards, and
+restart Codex if `$broker` is still missing.
+
 ## Configure routes
 
 Create the configuration file:
