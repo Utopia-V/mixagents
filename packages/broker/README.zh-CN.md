@@ -40,6 +40,40 @@ codex plugin add mixagents-broker@mixagents
 
 安装后新建一个 Codex 任务。
 
+### 与 cc-switch 共存
+
+cc-switch 每次切换 Codex 供应商时，都会用「通用配置」片段重新生成
+`~/.codex/config.toml`，只保留供应商自身的字段、通用配置片段和它自己管理的 MCP
+服务。写在 `config.toml` 里的其它内容，包括插件与 marketplace 注册，会在切换后消失；
+Codex 于是不再认识这个插件，需要重新安装一次。
+
+要让注册跟着走，把下面两段加入 cc-switch 的 Codex 通用配置片段：
+
+```toml
+[marketplaces.mixagents]
+source_type = "git"
+source = "https://github.com/Utopia-V/mixagents.git"
+
+[plugins."mixagents-broker@mixagents"]
+enabled = true
+```
+
+然后在每个 Codex 供应商的编辑弹窗里勾上「应用通用配置」：复选框在 `config.toml` 编辑器
+右上角，旁边的「编辑通用配置」用来修改片段内容。没有勾选的供应商在切换时不会写入这段
+片段，插件注册仍然会丢。cc-switch 自己的提示也写明了这一点：新安装插件或 Hook 后需要
+重新同步一次通用配置。
+
+切换后可以用 `codex plugin list` 确认注册还在。注册确实丢了时，按顺序执行：
+
+```bash
+codex plugin marketplace remove mixagents
+codex plugin marketplace add Utopia-V/mixagents
+codex plugin add mixagents-broker@mixagents
+```
+
+第一条不能省，残留的 marketplace 副本会让 `add` 报「already added from a different
+source」。修好后新建一个 Codex 任务；`$broker` 还没有出现时，完全退出并重新打开 Codex。
+
 ## 配置 route
 
 创建配置文件：
