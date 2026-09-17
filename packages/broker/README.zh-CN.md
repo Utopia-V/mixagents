@@ -85,6 +85,10 @@ Broker 通常会自动解析 Codex 可执行文件。Windows 上通过 npm 安�
 无法自动解析时，在配置顶层设置 `codexBin`，或把
 `MIXAGENTS_BROKER_CODEX_BIN` 设为 Codex 可执行文件的完整路径。
 
+`stallTimeoutMs` 可选，默认 `180000`。运行中的 agent 若在这么长时间内没有产生任何
+App Server 事件，快照会带 `stalled: true`；Broker 不会自行中断它。想让卡住的 worker
+更早暴露就调小，若某条 route 的单次工具调用或单次生成本身就可能耗时数分钟则调大。
+
 ## 配置凭据
 
 启动 Codex 的进程需要提供 `MIXAGENTS_BROKER_CREDENTIALS_JSON`。它是一个 JSON

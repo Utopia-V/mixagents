@@ -94,7 +94,13 @@ function currentTurn(thread) {
   return thread.turns.at(-1);
 }
 
-async function complete(thread, turn, text, status = "completed") {
+async function complete(
+  thread,
+  turn,
+  text,
+  status = "completed",
+  { notify = true } = {},
+) {
   if (turn.status !== "inProgress") return;
   const item = {
     type: "agentMessage",
@@ -108,6 +114,7 @@ async function complete(thread, turn, text, status = "completed") {
   turn.status = status;
   turn.error = status === "failed" ? { message: text } : null;
   await persist();
+  if (!notify) return;
   send({
     jsonrpc: "2.0",
     method: "item/completed",
@@ -117,6 +124,25 @@ async function complete(thread, turn, text, status = "completed") {
     jsonrpc: "2.0",
     method: "turn/completed",
     params: { threadId: thread.id, turn: turnPayload(turn) },
+  });
+}
+
+async function emitMessage(thread, turn, text, phase = "commentary") {
+  if (turn.status !== "inProgress") return;
+  const item = {
+    type: "agentMessage",
+    id: `message_${turn.id}_${turn.items.length}`,
+    text,
+    phase,
+    memoryCitation: null,
+    delivery: null,
+  };
+  turn.items.push(item);
+  await persist();
+  send({
+    jsonrpc: "2.0",
+    method: "item/completed",
+    params: { threadId: thread.id, turnId: turn.id, item, completedAtMs: 2 },
   });
 }
 
@@ -204,6 +230,29 @@ async function startTurn(thread, text) {
       }, 15);
     } else if (text.includes("approval")) {
       void askApproval(thread, turn);
+    } else if (text.includes("complete without notification")) {
+      setTimeout(
+        () =>
+          void complete(
+            thread,
+            turn,
+            "result:completed without notification",
+            "completed",
+            { notify: false },
+          ),
+        15,
+      );
+    } else if (text.includes("partial then silent")) {
+      // Publishes one message, then goes quiet without finishing the turn.
+      setTimeout(() => void emitMessage(thread, turn, "partial:research notes"), 10);
+    } else if (text.includes("chatty")) {
+      // Keeps producing events so the turn never looks stalled.
+      let tick = 0;
+      const timer = setInterval(() => {
+        tick += 1;
+        void emitMessage(thread, turn, `tick:${tick}`);
+        if (tick >= 100) clearInterval(timer);
+      }, 100);
     } else if (text.includes("slow")) {
       // Stay active until interrupted.
     } else if (text.includes("fail")) {
@@ -259,8 +308,14 @@ async function handle(request) {
       failure(id, -32602, `Thread ${params.threadId} not found`);
       return;
     }
+    if (method === "thread/read" && thread.preview.includes("thread read unsupported")) {
+      failure(id, -32601, "Method not found: thread/read");
+      return;
+    }
+    // Mirrors App Server: turns are only returned when explicitly requested.
+    const includeTurns = method === "thread/resume" || params.includeTurns === true;
     response(id, {
-      thread: threadPayload(thread, true),
+      thread: threadPayload(thread, includeTurns),
       model: thread.model,
       modelProvider: thread.modelProvider,
     });

@@ -93,6 +93,12 @@ instead of the `codex.cmd` or `codex.ps1` shim. If automatic resolution is not
 available, set the top-level `codexBin` field or
 `MIXAGENTS_BROKER_CODEX_BIN` to the full path of the Codex executable.
 
+`stallTimeoutMs` is optional and defaults to `180000`. A running agent whose
+active turn produced no App Server events for that long is reported with
+`stalled: true`; Broker never interrupts it by itself. Lower it to surface
+stuck workers sooner, raise it when a route legitimately spends minutes inside
+a single tool call or a single long generation.
+
 ## Configure credentials
 
 The process that starts Codex must provide

@@ -28,6 +28,7 @@ export interface BrokerConfig {
     workspaceRoots: string[];
     dataDir: string;
     codexBin: string;
+    stallTimeoutMs: number;
     routes: RouteConfig[];
 }
 export interface RouteView {
@@ -54,6 +55,8 @@ export interface AgentSnapshot {
     status: AgentStatus;
     output?: string;
     error?: string;
+    stalled?: boolean;
+    partialOutput?: string;
 }
 export interface WaitResult {
     timedOut: boolean;

@@ -22,7 +22,7 @@ import {
 
 const fixturePath = fileURLToPath(new URL("./fixtures/fake-codex.mjs", import.meta.url));
 
-async function harness(routeOverrides = {}, extraRoutes = {}) {
+async function harness(routeOverrides = {}, extraRoutes = {}, configOverrides = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "mixagents-broker-test-"));
   const workspace = path.join(root, "workspace");
   const dataDir = path.join(root, "state");
@@ -32,6 +32,7 @@ async function harness(routeOverrides = {}, extraRoutes = {}) {
     defaultRoute: "test-route",
     workspaceRoots: [workspace],
     dataDir,
+    ...configOverrides,
     routes: {
       "test-route": {
         description: "Offline fake provider",
@@ -243,6 +244,106 @@ test("App Server remains the history owner across Broker restart", async () => {
     }
   } finally {
     await rm(app.root, { recursive: true, force: true });
+  }
+});
+
+test("wait_agent rejects timeoutMs above the protocol maximum", async () => {
+  const app = await harness();
+  try {
+    await assert.rejects(
+      () => app.broker.waitAgents(["broker:missing:thread"], 120_001),
+      /timeoutMs must be at most 120000/,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("wait_agent recovers completion when App Server omits turn completion", async () => {
+  const app = await harness();
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "complete without notification",
+      cwd: app.workspace,
+    });
+    const result = await app.broker.waitAgents([spawned.agentId], 500);
+    assert.equal(result.timedOut, false);
+    assert.equal(result.agents[0].status, "completed");
+    assert.equal(result.agents[0].output, "result:completed without notification");
+  } finally {
+    await app.close();
+  }
+});
+
+test("wait_agent falls back to thread/resume when thread/read is unavailable", async () => {
+  const app = await harness();
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "thread read unsupported, complete without notification",
+      cwd: app.workspace,
+    });
+    const result = await app.broker.waitAgents([spawned.agentId], 500);
+    assert.equal(result.timedOut, false);
+    assert.equal(result.agents[0].status, "completed");
+    assert.equal(result.agents[0].output, "result:completed without notification");
+  } finally {
+    await app.close();
+  }
+});
+
+test("a silent turn is reported as stalled with its partial output", async () => {
+  const app = await harness({}, {}, { stallTimeoutMs: 300 });
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "partial then silent",
+      cwd: app.workspace,
+    });
+    const result = await app.broker.waitAgents([spawned.agentId], 800);
+    assert.equal(result.timedOut, true);
+    assert.equal(result.agents[0].status, "running");
+    assert.equal(result.agents[0].stalled, true);
+    assert.equal(result.agents[0].partialOutput, "partial:research notes");
+  } finally {
+    await app.close();
+  }
+});
+
+test("ongoing activity keeps a running turn from being reported as stalled", async () => {
+  const app = await harness({}, {}, { stallTimeoutMs: 400 });
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "chatty",
+      cwd: app.workspace,
+    });
+    const result = await app.broker.waitAgents([spawned.agentId], 700);
+    assert.equal(result.timedOut, true);
+    assert.equal(result.agents[0].status, "running");
+    assert.equal(result.agents[0].stalled, undefined);
+  } finally {
+    await app.close();
+  }
+});
+
+test("interrupt keeps the partial output of the stopped turn", async () => {
+  const app = await harness({}, {}, { stallTimeoutMs: 300 });
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "partial then silent",
+      cwd: app.workspace,
+    });
+    const staged = await app.broker.waitAgents([spawned.agentId], 150);
+    assert.equal(staged.agents[0].partialOutput, "partial:research notes");
+
+    const interrupted = await app.broker.interruptAgent(spawned.agentId);
+    assert.equal(interrupted.agent.status, "interrupted");
+    assert.equal(interrupted.agent.partialOutput, "partial:research notes");
+  } finally {
+    await app.close();
   }
 });
 
