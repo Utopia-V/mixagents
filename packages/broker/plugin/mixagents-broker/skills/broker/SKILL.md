@@ -42,8 +42,10 @@ or execution is ambiguous.
   ended, not that the worker succeeded.
 - A snapshot with `stalled: true` is still `running`, but its active turn has
   produced no events for a while. `partialOutput` then holds the last text the
-  worker produced. Interrupt that agent and send a follow-up asking it to
-  return what it already gathered, instead of waiting again or starting over.
+  worker produced. A single silent stretch can also be one long tool call or
+  one long generation, so keep waiting once; if it stays stalled, interrupt the
+  agent and send a follow-up asking it to return what it already gathered
+  instead of starting the task over.
 - Use `mcp__broker__interrupt_agent` only to stop the active turn. The thread
   remains reusable, its `partialOutput` is preserved, and remote provider
   computation may continue.

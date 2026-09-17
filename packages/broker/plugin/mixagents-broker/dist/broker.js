@@ -161,7 +161,7 @@ export class Broker {
         // example when a worker stalls right after persisting its final message.
         // Re-read durable thread state once before reporting a timeout so a worker
         // that already finished still surfaces its result.
-        const agents = await Promise.all(targets.map((target) => target.runtime.refresh(target.threadId)));
+        const agents = await Promise.all(targets.map((target) => target.runtime.refresh(target.threadId, { allowResumeFallback: true })));
         return { timedOut: !hasSettledAgent(agents), agents };
     }
     async listAgents() {

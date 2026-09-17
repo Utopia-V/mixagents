@@ -254,7 +254,9 @@ export class Broker {
     // Re-read durable thread state once before reporting a timeout so a worker
     // that already finished still surfaces its result.
     const agents = await Promise.all(
-      targets.map((target) => target.runtime.refresh(target.threadId)),
+      targets.map((target) =>
+        target.runtime.refresh(target.threadId, { allowResumeFallback: true }),
+      ),
     );
     return { timedOut: !hasSettledAgent(agents), agents };
   }

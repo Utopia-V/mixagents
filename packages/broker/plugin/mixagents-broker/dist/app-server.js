@@ -565,13 +565,17 @@ export class AppServerRuntime extends EventEmitter {
      * Re-read durable thread state so a turn that finished without a delivered
      * `turn/completed` notification can still be observed. This never throws:
      * when the durable read is unavailable the last known snapshot is returned.
+     *
+     * `thread/resume` is the heavier fallback for App Server builds that do not
+     * serve turns from `thread/read`. It is only used when the caller asks for
+     * it, so a periodic refresh cannot hammer a live thread with resume calls.
      */
-    async refresh(threadId) {
+    async refresh(threadId, options = {}) {
         const agent = await this.recover(threadId);
         if (agent.status === "not_found") {
             return this.snapshot(agent);
         }
-        const thread = await this.#readThreadState(threadId);
+        const thread = await this.#readThreadState(threadId, options.allowResumeFallback === true);
         if (!thread) {
             return this.snapshot(agent);
         }
@@ -604,7 +608,7 @@ export class AppServerRuntime extends EventEmitter {
         this.#updated();
         return this.snapshot(agent);
     }
-    async #readThreadState(threadId) {
+    async #readThreadState(threadId, allowResumeFallback) {
         try {
             const response = await this.#request("thread/read", {
                 threadId,
@@ -617,6 +621,9 @@ export class AppServerRuntime extends EventEmitter {
         }
         catch {
             // Some App Server builds do not serve thread/read with turns.
+        }
+        if (!allowResumeFallback) {
+            return undefined;
         }
         try {
             const response = await this.#request("thread/resume", {
