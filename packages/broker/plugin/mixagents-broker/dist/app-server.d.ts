@@ -4,6 +4,7 @@ interface RuntimeSpec {
     metadata: RuntimeMetadata;
     directory: string;
     process: ProcessSpec;
+    stallTimeoutMs: number;
 }
 interface InternalAgent {
     threadId: string;
@@ -12,6 +13,7 @@ interface InternalAgent {
     activeTurnId?: string;
     output?: string;
     error?: string;
+    lastActivityAt: number;
     ignoredTurnIds: Set<string>;
     interactions: PendingInteraction[];
 }
@@ -41,12 +43,24 @@ export declare class AppServerRuntime extends EventEmitter {
     }>;
     snapshot(agent: InternalAgent): AgentSnapshot;
     snapshotFor(threadId: string): Promise<AgentSnapshot>;
+    /**
+     * Re-read durable thread state so a turn that finished without a delivered
+     * `turn/completed` notification can still be observed. This never throws:
+     * when the durable read is unavailable the last known snapshot is returned.
+     *
+     * `thread/resume` is the heavier fallback for App Server builds that do not
+     * serve turns from `thread/read`. It is only used when the caller asks for
+     * it, so a periodic refresh cannot hammer a live thread with resume calls.
+     */
+    refresh(threadId: string, options?: {
+        allowResumeFallback?: boolean;
+    }): Promise<AgentSnapshot>;
     takeInteraction(threadId: string): PendingInteraction | undefined;
     listThreads(): Promise<ThreadRecord[]>;
 }
 export declare class RuntimeManager {
     #private;
-    constructor(dataDir: string, codexBin: string, environment?: NodeJS.ProcessEnv, processOverride?: ProcessSpec);
+    constructor(dataDir: string, codexBin: string, stallTimeoutMs: number, environment?: NodeJS.ProcessEnv, processOverride?: ProcessSpec);
     forRoute(route: RouteConfig, access: Access): Promise<AppServerRuntime>;
     forAgent(agentId: string): Promise<{
         runtime: AppServerRuntime;

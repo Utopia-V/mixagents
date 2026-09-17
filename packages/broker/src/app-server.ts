@@ -26,6 +26,7 @@ interface RuntimeSpec {
   metadata: RuntimeMetadata;
   directory: string;
   process: ProcessSpec;
+  stallTimeoutMs: number;
 }
 
 interface InternalAgent {
@@ -35,6 +36,7 @@ interface InternalAgent {
   activeTurnId?: string;
   output?: string;
   error?: string;
+  lastActivityAt: number;
   ignoredTurnIds: Set<string>;
   interactions: PendingInteraction[];
 }
@@ -528,6 +530,7 @@ export class AppServerRuntime extends EventEmitter {
       threadId: thread.id,
       cwd,
       status: "starting",
+      lastActivityAt: Date.now(),
       ignoredTurnIds: new Set(),
       interactions: [],
     };
@@ -578,6 +581,7 @@ export class AppServerRuntime extends EventEmitter {
         threadId,
         cwd: typeof thread.cwd === "string" ? thread.cwd : "",
         status: statusFromTurn(latest),
+        lastActivityAt: Date.now(),
         ignoredTurnIds: new Set(),
         interactions: [],
       };
@@ -603,6 +607,7 @@ export class AppServerRuntime extends EventEmitter {
           threadId,
           cwd: "",
           status: "not_found",
+          lastActivityAt: Date.now(),
           ignoredTurnIds: new Set(),
           interactions: [],
         };
@@ -662,7 +667,6 @@ export class AppServerRuntime extends EventEmitter {
       agent.ignoredTurnIds.add(interruptedTurnId);
       delete agent.activeTurnId;
       agent.status = "interrupted";
-      delete agent.output;
       delete agent.error;
       this.#updated();
     }
@@ -681,14 +685,117 @@ export class AppServerRuntime extends EventEmitter {
     if (agent.output !== undefined && agent.status === "completed") {
       snapshot.output = agent.output;
     }
+    if (agent.output !== undefined && agent.status !== "completed") {
+      snapshot.partialOutput = agent.output;
+    }
+    if (this.#isStalled(agent)) {
+      snapshot.stalled = true;
+    }
     if (agent.error !== undefined && agent.status === "failed") {
       snapshot.error = agent.error;
     }
     return snapshot;
   }
 
+  #isStalled(agent: InternalAgent, now = Date.now()): boolean {
+    return (
+      agent.status === "running" &&
+      agent.activeTurnId !== undefined &&
+      now - agent.lastActivityAt >= this.spec.stallTimeoutMs
+    );
+  }
+
   async snapshotFor(threadId: string): Promise<AgentSnapshot> {
     return this.snapshot(await this.recover(threadId));
+  }
+
+  /**
+   * Re-read durable thread state so a turn that finished without a delivered
+   * `turn/completed` notification can still be observed. This never throws:
+   * when the durable read is unavailable the last known snapshot is returned.
+   *
+   * `thread/resume` is the heavier fallback for App Server builds that do not
+   * serve turns from `thread/read`. It is only used when the caller asks for
+   * it, so a periodic refresh cannot hammer a live thread with resume calls.
+   */
+  async refresh(
+    threadId: string,
+    options: { allowResumeFallback?: boolean } = {},
+  ): Promise<AgentSnapshot> {
+    const agent = await this.recover(threadId);
+    if (agent.status === "not_found") {
+      return this.snapshot(agent);
+    }
+    const thread = await this.#readThreadState(threadId, options.allowResumeFallback === true);
+    if (!thread) {
+      return this.snapshot(agent);
+    }
+    if (thread.modelProvider && thread.modelProvider !== this.route.provider) {
+      throw new BrokerError(
+        "route_mismatch",
+        `Stored thread uses ${thread.modelProvider}, expected ${this.route.provider}`,
+      );
+    }
+    const turns = Array.isArray(thread.turns) ? thread.turns : [];
+    const latest = turns.at(-1);
+    if (!latest || agent.ignoredTurnIds.has(latest.id)) {
+      return this.snapshot(agent);
+    }
+    if (agent.activeTurnId !== undefined && latest.id !== agent.activeTurnId) {
+      // Durable state does not describe the turn Broker is waiting on yet.
+      return this.snapshot(agent);
+    }
+    const status = statusFromTurn(latest);
+    if (status === "starting" || status === "running") {
+      return this.snapshot(agent);
+    }
+    delete agent.activeTurnId;
+    agent.status = status;
+    const output = extractTurnOutput(latest) ?? agent.output;
+    const turnError = extractTurnError(latest);
+    if (output !== undefined) {
+      agent.output = output;
+    }
+    if (turnError !== undefined) {
+      agent.error = turnError;
+    }
+    this.#updated();
+    return this.snapshot(agent);
+  }
+
+  async #readThreadState(
+    threadId: string,
+    allowResumeFallback: boolean,
+  ): Promise<ThreadRecord | undefined> {
+    try {
+      const response = await this.#request("thread/read", {
+        threadId,
+        includeTurns: true,
+      });
+      const thread = threadFromResult(response);
+      if (Array.isArray(thread.turns) && thread.turns.length > 0) {
+        return thread;
+      }
+    } catch {
+      // Some App Server builds do not serve thread/read with turns.
+    }
+    if (!allowResumeFallback) {
+      return undefined;
+    }
+    try {
+      const response = await this.#request("thread/resume", {
+        threadId,
+        model: this.route.model,
+        modelProvider: this.route.provider,
+      });
+      const thread = threadFromResult(response);
+      if (Array.isArray(thread.turns) && thread.turns.length > 0) {
+        return thread;
+      }
+    } catch {
+      // Fall back to the last known in-memory snapshot.
+    }
+    return undefined;
   }
 
   takeInteraction(threadId: string): PendingInteraction | undefined {
@@ -742,6 +849,7 @@ export class AppServerRuntime extends EventEmitter {
         resolve,
         reject,
       });
+      agent.lastActivityAt = Date.now();
       this.#updated();
     });
   }
@@ -759,6 +867,7 @@ export class AppServerRuntime extends EventEmitter {
       agent.status = "running";
       delete agent.output;
       delete agent.error;
+      agent.lastActivityAt = Date.now();
       this.#updated();
       return;
     }
@@ -767,6 +876,7 @@ export class AppServerRuntime extends EventEmitter {
       if (item.type === "agentMessage" && typeof item.text === "string") {
         agent.output = item.text;
       }
+      agent.lastActivityAt = Date.now();
       return;
     }
     if (method === "turn/completed" && isRecord(params.turn) && typeof params.turn.id === "string") {
@@ -774,6 +884,7 @@ export class AppServerRuntime extends EventEmitter {
       if (agent.ignoredTurnIds.has(turn.id)) {
         return;
       }
+      agent.lastActivityAt = Date.now();
       delete agent.activeTurnId;
       agent.status = statusFromTurn(turn);
       const output = extractTurnOutput(turn) ?? agent.output;
@@ -792,16 +903,19 @@ export class AppServerRuntime extends EventEmitter {
 export class RuntimeManager {
   readonly #dataDir: string;
   readonly #process: ProcessSpec;
+  readonly #stallTimeoutMs: number;
   readonly #environment: NodeJS.ProcessEnv;
   readonly #runtimes = new Map<string, AppServerRuntime>();
 
   constructor(
     dataDir: string,
     codexBin: string,
+    stallTimeoutMs: number,
     environment = process.env,
     processOverride?: ProcessSpec,
   ) {
     this.#dataDir = dataDir;
+    this.#stallTimeoutMs = stallTimeoutMs;
     this.#process = processOverride ?? resolveCodexProcess(codexBin, environment);
     this.#environment = environment;
   }
@@ -821,7 +935,12 @@ export class RuntimeManager {
       createdAt: new Date().toISOString(),
     };
     const runtime = new AppServerRuntime(
-      { metadata, directory, process: this.#process },
+      {
+        metadata,
+        directory,
+        process: this.#process,
+        stallTimeoutMs: this.#stallTimeoutMs,
+      },
       this.#environment,
     );
     this.#runtimes.set(runtimeId, runtime);
@@ -881,7 +1000,12 @@ export class RuntimeManager {
       throw new BrokerError("invalid_runtime", `Runtime metadata ${runtimeId} is invalid`);
     }
     return new AppServerRuntime(
-      { metadata, directory, process: this.#process },
+      {
+        metadata,
+        directory,
+        process: this.#process,
+        stallTimeoutMs: this.#stallTimeoutMs,
+      },
       this.#environment,
     );
   }

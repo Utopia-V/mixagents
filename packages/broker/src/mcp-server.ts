@@ -128,7 +128,7 @@ const TOOLS: ToolDefinition[] = [
     name: "wait_agent",
     title: "Wait for agents",
     description:
-      "Wait for one of one to eight managed agents to finish, fail, interrupt, or request host interaction.",
+      "Wait for one of one to eight managed agents to finish, fail, interrupt, or request host interaction. A still-running snapshot may report `stalled` when its active turn produced no events for a while; Broker never interrupts a worker by itself.",
     inputSchema: {
       type: "object",
       properties: {

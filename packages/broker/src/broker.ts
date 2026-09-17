@@ -30,6 +30,8 @@ interface WaitTarget {
   threadId: string;
 }
 
+const WAIT_REFRESH_INTERVAL_MS = 5_000;
+
 function nonEmptyString(value: unknown, label: string): string {
   if (typeof value !== "string" || value.trim() === "") {
     throw new BrokerError("invalid_input", `${label} must be a non-empty string`);
@@ -44,7 +46,14 @@ function clampTimeout(value: unknown): number {
   if (!Number.isInteger(value) || (value as number) < 0) {
     throw new BrokerError("invalid_input", "timeoutMs must be a non-negative integer");
   }
-  return Math.min(value as number, 120_000);
+  if ((value as number) > 120_000) {
+    throw new BrokerError("invalid_input", "timeoutMs must be at most 120000");
+  }
+  return value as number;
+}
+
+function hasSettledAgent(agents: AgentSnapshot[]): boolean {
+  return agents.some((agent) => agent.status !== "running" && agent.status !== "starting");
 }
 
 async function waitForRuntimeUpdate(
@@ -94,6 +103,7 @@ export class Broker {
     this.#runtimes = new RuntimeManager(
       config.dataDir,
       config.codexBin,
+      config.stallTimeoutMs,
       this.#environment,
       options.processOverride,
     );
@@ -184,6 +194,7 @@ export class Broker {
       agentIds.map(async (agentId) => this.#runtimes.forAgent(agentId)),
     );
     const deadline = Date.now() + timeoutMs;
+    let nextRefreshAt = Date.now() + WAIT_REFRESH_INTERVAL_MS;
 
     while (true) {
       let handledInteraction = false;
@@ -196,40 +207,58 @@ export class Broker {
         }
       }
 
+      if (handledInteraction) {
+        continue;
+      }
+
       const runtimes = [...new Set(targets.map((target) => target.runtime))];
       const baselines = new Map(runtimes.map((runtime) => [runtime, runtime.revision]));
       const agents = await Promise.all(
         targets.map((target) => target.runtime.snapshotFor(target.threadId)),
       );
-      if (agents.some((agent) => agent.status !== "running" && agent.status !== "starting")) {
+      if (hasSettledAgent(agents)) {
         return { timedOut: false, agents };
       }
       if (options.signal?.aborted) {
         throw new BrokerError("wait_cancelled", "wait_agent was cancelled");
       }
-      const remaining = deadline - Date.now();
+
+      const now = Date.now();
+      const remaining = deadline - now;
       if (remaining <= 0) {
-        return { timedOut: true, agents };
+        break;
       }
-      if (handledInteraction) {
+      if (nextRefreshAt <= now) {
+        const refreshed = await Promise.all(
+          targets.map((target) => target.runtime.refresh(target.threadId)),
+        );
+        if (hasSettledAgent(refreshed)) {
+          return { timedOut: false, agents: refreshed };
+        }
+        nextRefreshAt = Date.now() + WAIT_REFRESH_INTERVAL_MS;
         continue;
       }
       const outcome = await waitForRuntimeUpdate(
         runtimes,
         baselines,
-        remaining,
+        Math.min(remaining, nextRefreshAt - now),
         options.signal,
       );
       if (outcome === "aborted") {
         throw new BrokerError("wait_cancelled", "wait_agent was cancelled");
       }
-      if (outcome === "timeout") {
-        const current = await Promise.all(
-          targets.map((target) => target.runtime.snapshotFor(target.threadId)),
-        );
-        return { timedOut: true, agents: current };
-      }
     }
+
+    // App Server can finish a turn without delivering `turn/completed`, for
+    // example when a worker stalls right after persisting its final message.
+    // Re-read durable thread state once before reporting a timeout so a worker
+    // that already finished still surfaces its result.
+    const agents = await Promise.all(
+      targets.map((target) =>
+        target.runtime.refresh(target.threadId, { allowResumeFallback: true }),
+      ),
+    );
+    return { timedOut: !hasSettledAgent(agents), agents };
   }
 
   async listAgents(): Promise<AgentSnapshot[]> {
