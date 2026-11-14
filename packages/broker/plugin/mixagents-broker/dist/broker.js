@@ -17,6 +17,10 @@ function clampTimeout(value) {
     }
     return Math.min(value, 120_000);
 }
+const FOREIGN_POLL_INTERVAL_MS = 500;
+function isTerminalStatus(status) {
+    return status !== "running" && status !== "starting";
+}
 async function waitForRuntimeUpdate(runtimes, baselines, timeoutMs, signal) {
     if (timeoutMs <= 0) {
         return "timeout";
@@ -122,7 +126,7 @@ export class Broker {
             const runtimes = [...new Set(targets.map((target) => target.runtime))];
             const baselines = new Map(runtimes.map((runtime) => [runtime, runtime.revision]));
             const agents = await Promise.all(targets.map((target) => target.runtime.snapshotFor(target.threadId)));
-            if (agents.some((agent) => agent.status !== "running" && agent.status !== "starting")) {
+            if (agents.some((agent) => isTerminalStatus(agent.status))) {
                 return { timedOut: false, agents };
             }
             if (options.signal?.aborted) {
@@ -135,21 +139,31 @@ export class Broker {
             if (handledInteraction) {
                 continue;
             }
-            const outcome = await waitForRuntimeUpdate(runtimes, baselines, remaining, options.signal);
+            const hasForeignTarget = targets.some((target) => !target.runtime.isAgentOwned(target.threadId));
+            const waitMs = hasForeignTarget
+                ? Math.min(remaining, FOREIGN_POLL_INTERVAL_MS)
+                : remaining;
+            const outcome = await waitForRuntimeUpdate(runtimes, baselines, waitMs, options.signal);
             if (outcome === "aborted") {
                 throw new BrokerError("wait_cancelled", "wait_agent was cancelled");
             }
-            if (outcome === "timeout") {
-                const current = await Promise.all(targets.map((target) => target.runtime.snapshotFor(target.threadId)));
-                return { timedOut: true, agents: current };
-            }
+            // Foreign runtimes never emit this instance's update event. Loop and
+            // re-read; the snapshot at the top is also the deadline re-read that
+            // distinguishes a just-completed agent from a real timeout.
         }
     }
     async listAgents() {
         const runtimes = await this.#runtimes.all();
         const groups = await Promise.all(runtimes.map(async (runtime) => {
             const threads = await runtime.listThreads();
-            return Promise.all(threads.map((thread) => runtime.snapshotFor(thread.id)));
+            const agents = [];
+            for (const thread of threads) {
+                // Hydrate one foreign thread at a time per runtime. Reading full
+                // history for every thread in parallel can exceed the App Server
+                // request timeout; runtimes themselves still run in parallel.
+                agents.push(await runtime.snapshotFor(thread.id));
+            }
+            return agents;
         }));
         return groups.flat();
     }

@@ -49,7 +49,8 @@ turn or start another turn on the same thread.
 
 Broker uses the native-sized status vocabulary:
 
-- `starting`: the thread exists and its first or next turn is being accepted;
+- `starting`: the thread exists and its first or next turn is being accepted,
+  or a foreign snapshot lacks reliable terminal evidence;
 - `running`: a turn is active, including time spent executing tools or waiting
   for a host interaction;
 - `interrupted`: the latest turn was interrupted and the thread can continue;
@@ -131,6 +132,32 @@ and resume behavior. Broker derives its managed agent id from the runtime and
 App Server thread identity. It stores only small non-secret runtime metadata
 that cannot be reconstructed from App Server; there is no second job database
 or copied conversation archive.
+
+An App Server thread may outlive the Broker process that created it and may be
+owned by another Broker or App Server. `list_agents` and `wait_agent` inspect
+such a thread with `thread/read`. They do not call `thread/resume`, create a
+local owned-agent entry, or cache the foreign snapshot as process-owned state.
+Because the observing process does not receive the owner's update events,
+`wait_agent` polls foreign targets.
+
+Writer control is more restrictive. `send` and `interrupt_agent` resume the
+thread only when this process needs to write. If App Server reports that
+another live owner holds the thread's active writer lock, Broker returns
+`agent_owned_elsewhere` and leaves the thread alone. This is neither a
+route-unavailable nor a not-found result: the thread exists under another
+owner. Broker does not kill the owner, remove the lock, or redispatch an
+ambiguous turn.
+
+Within each runtime, `list_agents` hydrates full thread histories sequentially.
+Runtimes may still be queried in parallel, but one runtime is not asked to
+load many full histories at once.
+
+Codex can synthesize terminal-looking data for an unloaded foreign thread:
+thread status `notLoaded`, an interrupted latest turn, and a missing or invalid
+`completedAt`. Broker conservatively reports `starting` and withholds output
+and error for that snapshot. If the interruption was real but external and no
+valid completion timestamp is supplied, the agent can remain `starting` until
+`wait_agent` times out. Locally owned turns do not use this rewrite.
 
 Configuration changes that affect provider execution create a new runtime
 identity for new agents; presentation-only description and tag edits do not.

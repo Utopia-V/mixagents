@@ -41,6 +41,7 @@ export declare class AppServerRuntime extends EventEmitter {
     }>;
     snapshot(agent: InternalAgent): AgentSnapshot;
     snapshotFor(threadId: string): Promise<AgentSnapshot>;
+    isAgentOwned(threadId: string): boolean;
     takeInteraction(threadId: string): PendingInteraction | undefined;
     listThreads(): Promise<ThreadRecord[]>;
 }

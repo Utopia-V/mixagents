@@ -151,6 +151,9 @@ async function launchServer(options = {}) {
     }),
   };
   delete serverEnvironment.TEST_PROVIDER_KEY;
+  // The Node test runner marks its descendants with NODE_TEST_CONTEXT. A
+  // spawned production MCP server must not inherit that runner transport.
+  delete serverEnvironment.NODE_TEST_CONTEXT;
   const child = spawn(process.execPath, [serverPath], {
     env: serverEnvironment,
     stdio: ["pipe", "pipe", "pipe"],

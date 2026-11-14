@@ -71,6 +71,15 @@ substates, result references, diff manifests, or release handles. App Server
 thread and turn identifiers may appear in diagnostics, but they are not the
 controller's normal working vocabulary.
 
+An agent id identifies a thread, not a Broker process. `list_agents` and
+`wait_agent` may observe a thread still owned by another Broker or App Server
+through `thread/read`. Broker does not resume that thread, take writer
+ownership, or cache the foreign snapshot as an agent owned by this process.
+Only `send` and `interrupt_agent` restore writer control. If another live
+owner holds the thread's writer lock, they fail with `agent_owned_elsewhere`
+and Broker does not take over. This ownership conflict is distinct from a
+route being unavailable before dispatch.
+
 ## Tool behavior
 
 ### `routes`
@@ -137,6 +146,16 @@ Server and is not retained as a separate Broker task. If the host cannot
 present the request, Broker declines it explicitly; credentials are never
 collected through elicitation.
 
+For a target this process does not own, wait re-reads its snapshot through
+`thread/read`. It does not rely on local update notifications from the owning
+process.
+
+Codex may report an unloaded foreign thread with thread status `notLoaded`,
+an interrupted latest turn, and no valid `completedAt`. Broker treats that as
+`starting` rather than a terminal result. A real external interruption without
+a valid completion timestamp can therefore remain `starting` until the wait
+times out. Turns owned by this process are unaffected.
+
 ### `interrupt_agent`
 
 Requests interruption of the current App Server turn and returns the previous
@@ -150,6 +169,10 @@ not claim that a remote provider stopped computation or billing.
 Returns managed App Server threads discoverable from Broker's configured local
 runtimes. App Server history remains authoritative; the list is a recovery and
 navigation aid rather than an audit archive.
+
+Within each runtime, Broker reads the matching thread histories one at a time
+to avoid concurrent overload. Different runtimes may still be queried in
+parallel.
 
 ## Workspace and write behavior
 

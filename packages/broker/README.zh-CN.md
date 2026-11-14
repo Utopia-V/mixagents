@@ -183,6 +183,17 @@ controller 看到的状态只有 `starting`、`running`、`completed`、`failed`
 `interrupted` 和 `not_found`。如果无法保持配置的 provider、model、workspace 或
 权限边界，Broker 会直接失败，不会替换 route。
 
+`list_agents` 和 `wait_agent` 可以观察仍由其他 Broker 或 App Server 拥有的 Agent
+thread。Broker 只读取这些外部 thread，不会 resume，也不会取得 writer 控制权；由于
+收不到对方进程的通知，`wait_agent` 会轮询它们。`send` 或 `interrupt_agent` 需要
+writer 控制权，而另一个存活 owner 仍持有该 thread 时，调用返回
+`agent_owned_elsewhere`，Broker 不会接管。这是所有权冲突，不是 route 不可用。
+
+`list_agents` 在每个 runtime 内逐条读取 thread history，避免并发读取压垮 App Server。
+外部 thread 的 thread status 为 `notLoaded`，且最新 turn 显示 interrupted。
+此时该 turn 若没有有效的完成时间戳，Broker 会报告 `starting`，而不是过期的终态。
+这种外部中断可能保持 `starting` 直到等待超时。本进程拥有的 agent 不受影响。
+
 详细契约见 [controller-contract.md](docs/controller-contract.md) 和
 [backend-and-lifecycle-policy.md](docs/backend-and-lifecycle-policy.md)。
 

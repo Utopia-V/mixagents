@@ -216,6 +216,55 @@ function statusFromTurn(turn) {
             return "starting";
     }
 }
+function statusFromThread(thread) {
+    if (isRecord(thread.status)) {
+        switch (thread.status.type) {
+            case "idle":
+                // Metadata alone is not evidence that a turn completed. A completed
+                // status requires a latest turn with status completed.
+                return "starting";
+            case "active":
+                return "running";
+            case "systemError":
+                return "failed";
+            default:
+                return "starting";
+        }
+    }
+    return "starting";
+}
+function isValidTimestamp(value) {
+    return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+function normalizeForeignIncompleteInterrupt(agent, thread) {
+    if (agent.status !== "interrupted") {
+        return;
+    }
+    if (!isRecord(thread.status) || thread.status.type !== "notLoaded") {
+        return;
+    }
+    const turns = Array.isArray(thread.turns) ? thread.turns : [];
+    const latest = turns.at(-1);
+    if (!latest ||
+        latest.status !== "interrupted" ||
+        isValidTimestamp(latest.completedAt)) {
+        return;
+    }
+    // An unloaded durable turn can surface as interrupted while the owner is
+    // still running. Without a completion timestamp this is not terminal
+    // evidence, so stay conservative rather than returning stale output/error.
+    agent.status = "starting";
+    delete agent.output;
+    delete agent.error;
+    delete agent.activeTurnId;
+}
+function isActiveWriterError(error) {
+    const message = errorMessage(error);
+    return /already has an active writer/i.test(message) && !/no active writer/i.test(message);
+}
+function agentOwnedElsewhere(threadId) {
+    return new BrokerError("agent_owned_elsewhere", `Thread ${threadId} is owned by another App Server; no takeover attempted`, { threadId });
+}
 function threadFromResult(result) {
     if (!isRecord(result) || !isRecord(result.thread) || typeof result.thread.id !== "string") {
         throw new BrokerError("app_server_protocol", "App Server returned no thread identity");
@@ -420,6 +469,35 @@ export class AppServerRuntime extends EventEmitter {
         this.#updated();
         return this.snapshot(agent);
     }
+    #applyLatestTurn(agent, latest) {
+        agent.status = statusFromTurn(latest);
+        if (latest.status === "inProgress") {
+            agent.activeTurnId = latest.id;
+        }
+        const output = extractTurnOutput(latest);
+        const turnError = extractTurnError(latest);
+        if (output !== undefined) {
+            agent.output = output;
+        }
+        if (turnError !== undefined) {
+            agent.error = turnError;
+        }
+    }
+    #agentFromThread(threadId, thread) {
+        const turns = Array.isArray(thread.turns) ? thread.turns : [];
+        const latest = turns.at(-1);
+        const agent = {
+            threadId,
+            cwd: typeof thread.cwd === "string" ? thread.cwd : "",
+            status: latest ? "starting" : statusFromThread(thread),
+            ignoredTurnIds: new Set(),
+            interactions: [],
+        };
+        if (latest) {
+            this.#applyLatestTurn(agent, latest);
+        }
+        return agent;
+    }
     async recover(threadId) {
         const existing = this.#agents.get(threadId);
         if (existing) {
@@ -436,30 +514,14 @@ export class AppServerRuntime extends EventEmitter {
             if (thread.modelProvider && thread.modelProvider !== this.route.provider) {
                 throw new BrokerError("route_mismatch", `Stored thread uses ${thread.modelProvider}, expected ${this.route.provider}`);
             }
-            const turns = Array.isArray(thread.turns) ? thread.turns : [];
-            const latest = turns.at(-1);
-            const agent = {
-                threadId,
-                cwd: typeof thread.cwd === "string" ? thread.cwd : "",
-                status: statusFromTurn(latest),
-                ignoredTurnIds: new Set(),
-                interactions: [],
-            };
-            if (latest?.status === "inProgress") {
-                agent.activeTurnId = latest.id;
-            }
-            const output = extractTurnOutput(latest);
-            const turnError = extractTurnError(latest);
-            if (output !== undefined) {
-                agent.output = output;
-            }
-            if (turnError !== undefined) {
-                agent.error = turnError;
-            }
+            const agent = this.#agentFromThread(threadId, thread);
             this.#agents.set(threadId, agent);
             return agent;
         }
         catch (error) {
+            if (isActiveWriterError(error)) {
+                throw agentOwnedElsewhere(threadId);
+            }
             if (error instanceof JsonRpcRemoteError &&
                 /not found|unknown thread/i.test(error.message)) {
                 const missing = {
@@ -504,6 +566,9 @@ export class AppServerRuntime extends EventEmitter {
             agent.status = "running";
         }
         catch (error) {
+            if (isActiveWriterError(error)) {
+                throw agentOwnedElsewhere(threadId);
+            }
             agent.status = "failed";
             agent.error = errorMessage(error);
         }
@@ -515,10 +580,18 @@ export class AppServerRuntime extends EventEmitter {
         const previousStatus = agent.status;
         if (agent.status === "running" && agent.activeTurnId) {
             const interruptedTurnId = agent.activeTurnId;
-            await this.#request("turn/interrupt", {
-                threadId,
-                turnId: interruptedTurnId,
-            });
+            try {
+                await this.#request("turn/interrupt", {
+                    threadId,
+                    turnId: interruptedTurnId,
+                });
+            }
+            catch (error) {
+                if (isActiveWriterError(error)) {
+                    throw agentOwnedElsewhere(threadId);
+                }
+                throw error;
+            }
             agent.ignoredTurnIds.add(interruptedTurnId);
             delete agent.activeTurnId;
             agent.status = "interrupted";
@@ -546,7 +619,44 @@ export class AppServerRuntime extends EventEmitter {
         return snapshot;
     }
     async snapshotFor(threadId) {
-        return this.snapshot(await this.recover(threadId));
+        const owned = this.#agents.get(threadId);
+        if (owned) {
+            return this.snapshot(owned);
+        }
+        await this.start();
+        let thread;
+        try {
+            const response = await this.#request("thread/read", {
+                threadId,
+                includeTurns: true,
+            });
+            thread = threadFromResult(response);
+        }
+        catch (error) {
+            if (isActiveWriterError(error)) {
+                throw agentOwnedElsewhere(threadId);
+            }
+            if (error instanceof JsonRpcRemoteError &&
+                /not found|unknown thread/i.test(error.message)) {
+                return this.snapshot({
+                    threadId,
+                    cwd: "",
+                    status: "not_found",
+                    ignoredTurnIds: new Set(),
+                    interactions: [],
+                });
+            }
+            throw error;
+        }
+        if (thread.modelProvider !== this.route.provider) {
+            throw new BrokerError("route_mismatch", `Stored thread uses ${thread.modelProvider ?? "unknown"}, expected ${this.route.provider}`);
+        }
+        const agent = this.#agentFromThread(threadId, thread);
+        normalizeForeignIncompleteInterrupt(agent, thread);
+        return this.snapshot(agent);
+    }
+    isAgentOwned(threadId) {
+        return this.#agents.has(threadId);
     }
     takeInteraction(threadId) {
         return this.#agents.get(threadId)?.interactions.shift();
@@ -641,6 +751,7 @@ export class RuntimeManager {
     #process;
     #environment;
     #runtimes = new Map();
+    #loading = new Map();
     constructor(dataDir, codexBin, environment = process.env, processOverride) {
         this.#dataDir = dataDir;
         this.#process = processOverride ?? resolveCodexProcess(codexBin, environment);
@@ -651,6 +762,10 @@ export class RuntimeManager {
         const existing = this.#runtimes.get(runtimeId);
         if (existing) {
             return existing;
+        }
+        const loading = this.#loading.get(runtimeId);
+        if (loading) {
+            return loading;
         }
         const directory = path.join(this.#dataDir, "runtimes", runtimeId);
         const metadata = {
@@ -666,12 +781,7 @@ export class RuntimeManager {
     }
     async forAgent(agentId) {
         const { runtimeId, threadId } = parseAgentId(agentId);
-        let runtime = this.#runtimes.get(runtimeId);
-        if (!runtime) {
-            runtime = await this.#loadRuntime(runtimeId);
-            this.#runtimes.set(runtimeId, runtime);
-        }
-        return { runtime, threadId };
+        return { runtime: await this.#runtimeById(runtimeId), threadId };
     }
     async all() {
         const root = path.join(this.#dataDir, "runtimes");
@@ -687,13 +797,37 @@ export class RuntimeManager {
                 continue;
             }
             try {
-                this.#runtimes.set(runtimeId, await this.#loadRuntime(runtimeId));
+                await this.#runtimeById(runtimeId);
             }
             catch {
                 // Ignore incomplete or foreign directories rather than granting them authority.
             }
         }
         return [...this.#runtimes.values()];
+    }
+    async #runtimeById(runtimeId) {
+        const existing = this.#runtimes.get(runtimeId);
+        if (existing) {
+            return existing;
+        }
+        const loading = this.#loading.get(runtimeId);
+        if (loading) {
+            return loading;
+        }
+        const pending = this.#loadRuntime(runtimeId)
+            .then((runtime) => {
+            const current = this.#runtimes.get(runtimeId);
+            if (current) {
+                return current;
+            }
+            this.#runtimes.set(runtimeId, runtime);
+            return runtime;
+        })
+            .finally(() => {
+            this.#loading.delete(runtimeId);
+        });
+        this.#loading.set(runtimeId, pending);
+        return pending;
     }
     async #loadRuntime(runtimeId) {
         const directory = path.join(this.#dataDir, "runtimes", runtimeId);
