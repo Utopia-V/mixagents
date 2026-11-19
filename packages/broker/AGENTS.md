@@ -1,50 +1,59 @@
-# Broker project instructions
+# Broker
 
-- Read `README.md` for product status,
-  `docs/backend-and-lifecycle-policy.md` for routing and thread semantics,
-  `docs/controller-contract.md` for the Skill/MCP boundary, and `SECURITY.md`
-  before changing provider data, credentials, permissions, tools, lifecycle,
-  or paid-call behavior.
-- Broker is a cross-provider subagent adapter. Keep the controller on its
-  selected provider while delegating to explicitly selected worker routes. Do
-  not turn Broker into a generic task platform or a provider-specific model
-  wrapper.
-- Preserve native-sized controller semantics: agent identity, a small status
-  set, final text or error, send, wait, interrupt, and list. Keep App Server
-  thread/turn details and qualification evidence internal unless needed for a
-  truthful diagnostic.
-- A completed, failed, or interrupted turn does not destroy its agent thread;
-  follow-up input can start another turn.
-- The `$broker` Skill calls native collaboration tools directly only for a
-  currently qualified route. The local `broker` STDIO MCP server owns managed
-  App Server agents and never impersonates a native child.
-- Select the backend before dispatch. Do not trial-spawn native per task,
-  silently change provider or model, migrate an active agent, or create a
-  second worker after an ambiguous creation.
-- MCP inputs select preconfigured routes only. Never accept inline credentials,
-  base URLs, authorization headers, or provider definitions from model
-  context.
-- Send only the assignment and explicitly included context to the worker
-  provider. Do not copy the controller's conversation automatically.
-- Default to read-only access. `workspace-write` must remain within both the
-  route cap and host authority. A worker cannot expand either boundary through
-  an approval request.
-- Treat configured and client-advertised workspace roots as preauthorization.
-  An unlisted canonical `cwd` may be approved through MCP elicitation only for
-  the current connection; never persist that grant or broaden it beyond the
-  approved directory and descendants.
-- Use the supplied workspace directly. Broker does not own worktree creation,
-  merging, rebasing, diff handoff, or cleanup. The controller serializes
-  overlapping writers and gives concurrent writers disjoint ownership.
-- App Server owns thread history, turn results, and recovery. Persist only the
-  non-secret runtime metadata that cannot be reconstructed from it.
-- Scope managed runtimes by route and effective access. Pass only the selected
-  route's credentials, filter those credentials from worker shell commands,
-  and disable nested Broker/multi-agent behavior.
-- Treat `turn/interrupt` as local interruption only; it does not prove that
-  provider computation or billing stopped.
-- Offline tests must make no provider call. Live qualification or smoke tests
-  require explicit authorization and must state the provider data boundary.
-- Keep `codex-deepseek-subagent` as historical evidence and
-  `pi-dsh-mimic` as an independent package; neither is a Broker runtime
-  dependency.
+Broker is a Codex plugin with two parts: the `$broker` Skill
+(`plugin/mixagents-broker/skills/broker/SKILL.md`), which is the prompt a
+Codex controller actually reads, and a local STDIO MCP server (`src/`). The
+server starts Codex App Server processes, one per route and access level, each
+configured for its route's provider, and maps their threads onto six tools.
+Codex pins native subagents to the parent's provider, so a separate App Server
+process is the only way to run a worker elsewhere;
+[docs/design.md](docs/design.md) explains that and the tool contract.
+
+The design stance is to borrow App Server's lifecycle (threads, turns,
+history, interruption, recovery) instead of building one, to keep the
+controller's surface at six tools and a few statuses, and to add state, fields
+or configuration only when a real failure has demanded it. The fixes merged
+from PRs #13 and #14 were cut down to that.
+
+A few things must stay true:
+
+- A worker runs on exactly its route's provider and model. When that is not
+  possible the call fails; Broker never falls back to another route, because
+  the user chose where their data goes and who bills them.
+- Credentials reach Broker through the environment Codex was started with
+  (`MIXAGENTS_BROKER_CREDENTIALS_JSON`). Each runtime gets only its route's
+  keys, and they are filtered out of worker shell commands. They never travel
+  through tool arguments, assignments or model context, where a model sees
+  them and a provider may log them.
+- Workers are read-only unless the call asks for `workspace-write` and the
+  route allows it. An approved command or file change runs outside the
+  worker's sandbox, and the approval prompt in `src/interactions.ts` says so.
+
+## Tests
+
+`npm run check` type-checks and runs `test/*.test.mjs` against a fake App
+Server (`test/fixtures/fake-codex.mjs`). It is fast; run it on every change.
+
+`npm run test:codex` runs the built server against the real `codex` on `PATH`
+(or `MIXAGENTS_BROKER_CODEX_BIN`), with a mock Responses provider inside the
+test standing in for the model (`test/codex/`). It catches App Server protocol
+changes the fake cannot, so run it when touching anything that talks to App
+Server. CI runs it weekly against the latest stable Codex and on every Broker
+pull request.
+
+Neither check calls a provider. A run against a real provider costs money and
+sends data to a third party; ask the maintainer first.
+
+## Release
+
+`dist/` is built by `npm run build` and not committed. The version lives in
+four files: `package.json`, `plugin/mixagents-broker/package.json`,
+`plugin/mixagents-broker/.codex-plugin/plugin.json` and the repository's
+`.agents/plugins/marketplace.json`; `test/release.test.mjs` checks they agree.
+Users install the version the marketplace file pins from npm, so that file must
+not reach `main` with a version npm does not have yet: publish first with the
+manual `publish-broker.yml` workflow, then merge.
+
+`README.md` and `README.zh-CN.md` are the user documentation and change
+together. `plugin/mixagents-broker/README.md` is the npm page and only links to
+them.

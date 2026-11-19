@@ -1,133 +1,23 @@
 # MixAgents Broker
 
-MixAgents Broker runs Codex subagents on configured model providers without
-changing the controller's provider. It packages the `$broker` Skill and a
-local STDIO MCP server backed by Codex App Server.
+MixAgents Broker is a Codex plugin that lets a Codex session hand subtasks to
+workers on other model providers while the session stays on its own provider.
+It contains the `$broker` Skill and a local MCP server that runs each worker as
+a separate Codex App Server process on the provider and model of a route you
+configure.
 
-Requirements: Codex with plugin and App Server support, Node.js `22.19.0` or
-later, a Responses-compatible provider endpoint, and its API credential.
+Requirements: Codex `0.149.0` or later, Node.js `22.19.0` or later, a provider
+endpoint compatible with the OpenAI Responses API, and an API key for it.
 
-## Install
-
-Add the MixAgents marketplace:
+Install through the MixAgents marketplace, then start a new Codex task:
 
 ```bash
 codex plugin marketplace add Utopia-V/mixagents
-```
-
-Install **MixAgents Broker** from the **MixAgents** source in the Codex Plugins
-page, or use:
-
-```bash
 codex plugin add mixagents-broker@mixagents
 ```
 
-Start a new Codex task after installation.
-
-### Coexisting with cc-switch
-
-cc-switch regenerates `~/.codex/config.toml` from the selected provider and its
-common config snippet on every Codex provider switch, so plugin and marketplace
-registration must live in that snippet:
-
-```toml
-[marketplaces.mixagents]
-source_type = "git"
-source = "https://github.com/Utopia-V/mixagents.git"
-
-[plugins."mixagents-broker@mixagents"]
-enabled = true
-```
-
-Tick "apply common config" (应用通用配置) for every Codex provider, otherwise a
-switch does not write the snippet. If the registration is gone after a switch,
-run `codex plugin marketplace remove mixagents`,
-`codex plugin marketplace add Utopia-V/mixagents`, then
-`codex plugin add mixagents-broker@mixagents`.
-
-## Configure
-
-Create `~/.config/mixagents/broker.json` on Linux/macOS or
-`%APPDATA%\MixAgents\broker.json` on Windows:
-
-```json
-{
-  "defaultRoute": "opencode-deepseek-flash",
-  "routes": {
-    "opencode-deepseek-flash": {
-      "description": "Fast worker for review, extraction, and coding tasks.",
-      "provider": "opencode_go",
-      "providerName": "OpenCode Go",
-      "model": "deepseek-v4-flash",
-      "contextWindow": 1000000,
-      "baseUrl": "https://opencode.ai/zen/go/v1",
-      "envKey": "OPENCODE_API_KEY",
-      "tags": ["fast", "low-cost", "coding"],
-      "maxAccess": "workspace-write",
-      "reasoningEffort": "medium"
-    }
-  }
-}
-```
-
-`workspaceRoots` is optional. It preauthorizes fixed directories. Otherwise,
-pass the current workspace's absolute path as `cwd`; Broker asks for approval
-before its first use and remembers the canonical directory and descendants for
-the current MCP connection. Clients without MCP elicitation support must set
-`workspaceRoots` explicitly.
-
-Broker normally resolves the installed Codex executable automatically. On
-Windows, npm-managed installs use the matching native `codex.exe`. If it
-cannot be resolved, set the top-level `codexBin` field or
-`MIXAGENTS_BROKER_CODEX_BIN` to the full executable path.
-
-The process that starts Codex must provide
-`MIXAGENTS_BROKER_CREDENTIALS_JSON`:
-
-```json
-{
-  "OPENCODE_API_KEY": "<secret>"
-}
-```
-
-Inject the credential map through the launcher or secret manager. Do not place
-credentials in `broker.json`, prompts, shell history, screenshots, or a
-repository.
-
-## Use
-
-```text
-$broker Use opencode-deepseek-flash to review this module and return the three
-most important findings.
-```
-
-Broker reports the provider, model, and backend before dispatch. Only the
-assignment and explicitly included context are sent to the selected provider.
-Declining an unlisted workspace starts no worker.
-
-## Implementation
-
-The `$broker` Skill selects a configured route before dispatch. Each route
-fixes the worker provider and model.
-
-Current Codex releases use the `app_server` backend because a native custom
-child inherits the parent provider. Broker starts a clean Codex App Server
-runtime for the selected route and access level. App Server owns the model
-loop, tools, thread history, turn results, and recovery.
-
-Broker exposes:
-
-- `routes`
-- `spawn_agent`
-- `send`
-- `wait_agent`
-- `interrupt_agent`
-- `list_agents`
-
-Dispatch defaults to `read-only`. A managed worker uses the supplied
-workspace directly. File content and tool results may cross the selected
-provider boundary. Local interruption may not stop upstream computation or
-billing.
-
-Full documentation:
-[github.com/Utopia-V/mixagents/tree/main/packages/broker](https://github.com/Utopia-V/mixagents/tree/main/packages/broker)
+Routes and credentials must be configured before first use. The documentation
+covers configuration, use, data handling and the Linux sandbox:
+[English](https://github.com/Utopia-V/mixagents/blob/main/packages/broker/README.md) ·
+[简体中文](https://github.com/Utopia-V/mixagents/blob/main/packages/broker/README.zh-CN.md) ·
+[Security](https://github.com/Utopia-V/mixagents/blob/main/packages/broker/SECURITY.md)
