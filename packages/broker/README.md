@@ -253,3 +253,13 @@ The npm package is built at
 `plugin/mixagents-broker`. It contains the plugin manifest, `$broker` Skill,
 STDIO MCP configuration, and prebuilt JavaScript runtime. Production runtime
 dependencies are empty.
+
+`npm run check` uses a fake App Server. `npm run test:codex` runs the Broker
+MCP server against the real `codex` on `PATH`, or the build named by
+`MIXAGENTS_BROKER_CODEX_BIN`. A mock Responses provider inside the test stands
+in for the model, and the Codex home, Broker data directory, and workspace are
+temporary, so the check needs no provider account or key and never touches
+`~/.codex`. It covers route and credential isolation, follow-up turns, provider
+failure, interruption, restart recovery, and the credential filter on worker
+shell commands. CI runs it with the latest stable Codex every week, on pushes
+to `main`, and on pull requests that change Broker.
