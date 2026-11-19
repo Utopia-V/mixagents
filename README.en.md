@@ -25,7 +25,7 @@ pi-dsh-mimic is an extension for [Pi](https://github.com/earendil-works/pi) and 
 pi install npm:pi-dsh-mimic
 ```
 
-It changes only the first DeepSeek V4 Pro request of a new session: that request uses the DSH Minimal persona and two tools, and after the first valid response Pi's native requests and full tool catalog return. On one long-horizon maintenance task the author built, default Pi scored 92 and four runs of this flow scored 96–98.
+It changes only the first DeepSeek V4 Pro request of a new session: that request uses the DSH Minimal persona and two tools, and after the first valid response Pi's native requests and full tool catalog return. On one long-horizon maintenance task the author built, default Pi scored 92 and four runs of this flow scored 96–98. These results date from August 2026; the package now receives bug fixes only, and its [maintenance status](packages/pi-dsh-mimic/README.md#maintenance-status) is in the user guide.
 
 [User guide](packages/pi-dsh-mimic/README.md) · [Experiments and design](packages/pi-dsh-mimic/docs/advanced.md) · [Security](packages/pi-dsh-mimic/SECURITY.md)
 

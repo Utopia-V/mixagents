@@ -4,7 +4,7 @@
 
 `packages/broker` 是 MixAgents Broker，一个 Codex 插件，把子任务交给其他 provider 上的 Codex App Server worker。它是仓库的主要产品，有外部用户和贡献者。包内的 `AGENTS.md` 说明了它的设计约束，修改前先读；`docs/` 下是 controller 契约和 backend 策略，`test/` 下是测试。`src/` 编译到 `plugin/mixagents-broker/dist`，这个目录随仓库提交，也是 npm 实际发布的内容，所以改了 `src/` 要连同重新构建的 `dist/` 一起提交。用户通过根目录的 `.agents/plugins/marketplace.json` 安装插件，其中的版本号必须与插件版本一致，`test/release.test.mjs` 会检查这一点。
 
-`packages/pi-dsh-mimic` 是 Pi coding agent 的扩展，只改变 DeepSeek V4 Pro 新 session 的第一次请求。实验设计和结果在 `docs/advanced.md`，`docs/project2-evidence.md` 是原始证据记录；`package.json` 的 `files` 列出了随包发布的文档，改名或删除这些文件会让 `test/manifest.test.ts` 失败。
+`packages/pi-dsh-mimic` 是 Pi coding agent 的扩展，只改变 DeepSeek V4 Pro 新 session 的第一次请求。它已冻结，只修复缺陷，不增加功能。实验设计和结果在 `docs/advanced.md`，`docs/project2-evidence.md` 是原始证据记录；`package.json` 的 `files` 列出了随包发布的文档，改名或删除这些文件会让 `test/manifest.test.ts` 失败。
 
 根目录的 `prompts/install-with-codex.md` 是已退役的 Codex DeepSeek Subagent 留下的说明。旧的 raw URL 仍有人访问，所以保留这个文件。
 

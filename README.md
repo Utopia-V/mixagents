@@ -25,7 +25,7 @@ pi-dsh-mimic 是 [Pi](https://github.com/earendil-works/pi) 的扩展，可以�
 pi install npm:pi-dsh-mimic
 ```
 
-它只改变 DeepSeek V4 Pro 在新 session 中的第一次请求：先使用 DSH Minimal 的 persona 和两个工具，第一次有效响应后恢复 Pi 原生请求和完整工具目录。在作者自建的一个长程代码维护任务上，默认 Pi 得到 92 分，这一流程的四次运行得到 96–98 分。
+它只改变 DeepSeek V4 Pro 在新 session 中的第一次请求：先使用 DSH Minimal 的 persona 和两个工具，第一次有效响应后恢复 Pi 原生请求和完整工具目录。在作者自建的一个长程代码维护任务上，默认 Pi 得到 92 分，这一流程的四次运行得到 96–98 分。这些结果测于 2026 年 8 月，本包此后只修复缺陷，[维护状态](packages/pi-dsh-mimic/README.zh-CN.md#维护状态)见使用说明。
 
 [使用说明](packages/pi-dsh-mimic/README.zh-CN.md) · [实验与设计](packages/pi-dsh-mimic/docs/advanced.zh-CN.md) · [安全说明](packages/pi-dsh-mimic/SECURITY.md)
 
