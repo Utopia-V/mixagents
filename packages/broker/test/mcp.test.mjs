@@ -203,7 +203,7 @@ async function launchServer(options = {}) {
           resolve();
         });
       });
-      await rm(root, { recursive: true, force: true });
+      await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
       assert.equal(forced, false, "MCP server should stop its App Server children on stdin close");
       assert.equal(stderr.join(""), "");
     },

@@ -70,7 +70,7 @@ async function harness(routeOverrides = {}, extraRoutes = {}) {
     broker,
     async close() {
       await broker.close();
-      await rm(root, { recursive: true, force: true });
+      await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     },
   };
 }
@@ -237,7 +237,7 @@ test("App Server remains the history owner across Broker restart", async () => {
       await restarted.close();
     }
   } finally {
-    await rm(app.root, { recursive: true, force: true });
+    await rm(app.root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   }
 });
 
@@ -446,7 +446,7 @@ test("Windows uses the native executable from the npm-managed Codex package", as
       { command: "D:\\Tools\\Codex\\codex.exe", prefixArgs: [] },
     );
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   }
 });
 
