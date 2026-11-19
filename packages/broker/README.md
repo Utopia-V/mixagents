@@ -207,20 +207,12 @@ The controller sees `starting`, `running`, `completed`, `failed`,
 configured provider, model, workspace, or access boundary; it does not
 substitute another route.
 
-`list_agents` and `wait_agent` can observe an agent thread still owned by
-another Broker or App Server. Broker reads these foreign threads without
-resuming them or taking writer control; `wait_agent` polls them because it
-cannot receive that process's notifications. A `send` or `interrupt_agent`
-that needs writer control while another live owner holds the thread fails with
-`agent_owned_elsewhere`; Broker does not take over. This is an ownership
-conflict, not an unavailable route.
-
-`list_agents` reads thread histories one at a time within each runtime to avoid
-overloading App Server. A foreign snapshot can report thread status `notLoaded`
-with an interrupted latest turn. In that case, a missing valid completion
-timestamp makes Broker report `starting`, not a stale terminal result. An
-external interruption without that timestamp may stay pending until the wait
-timeout; agents owned by this process are unaffected.
+Several Codex chats can share one Broker data directory, and each sees the
+others' agents. `list_agents` and `wait_agent` observe an agent owned by
+another chat without taking it over; `wait_agent` polls it, since that chat's
+notifications do not reach this one. `send` and `interrupt_agent` on such an
+agent fail with `agent_owned_elsewhere` while the other chat's Broker is
+running. Once it has exited, the agent can be continued from any chat.
 
 The detailed contracts are in
 [controller-contract.md](docs/controller-contract.md) and
