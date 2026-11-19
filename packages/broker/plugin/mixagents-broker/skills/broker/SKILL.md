@@ -1,66 +1,82 @@
 ---
 name: broker
-description: Delegate bounded work from a Codex controller to configured workers on other model providers without changing the controller's provider. Use when cross-provider delegation, a named Broker route, or a lower-cost/specialized external worker is requested. Do not use for ordinary same-agent work.
+description: Hand a bounded task from this Codex session to a worker on another model provider through MixAgents Broker, while this session keeps its own provider and model. Use when the user invokes $broker, names a Broker route, or asks for work to run on a different provider or a cheaper or specialised model. Not for work this session should simply do itself.
 ---
 
 # Broker
 
-Broker provides native-sized subagent controls over configured provider
-routes. Keep the controller's own model and provider unchanged.
+Codex runs its own subagents on this session's provider. Broker is for work
+that should run elsewhere: each configured route names a provider and a model,
+and a worker on a route is a separate Codex process that talks only to that
+provider and returns its final text to you.
 
-## Route and dispatch
+## Dispatching a task
 
-1. Call `mcp__broker__routes` before the first dispatch in a turn. An explicit
-   route or provider choice wins. Otherwise choose an available route from its
-   description and tags, and state the provider/model briefly before sending
-   data there.
-2. Treat an explicit `$broker` request containing a task as authorization for
-   one dispatch to the selected configured route. For implicit use, obtain
-   authorization before a paid or external-provider call.
-3. Build one self-contained assignment. Send only that assignment and context
-   actually needed by the worker; do not copy the entire parent conversation.
-4. Pass the current workspace's absolute path as `cwd`. Broker uses a root
-   supplied by the host or configuration; for an unlisted workspace, let the
-   host present Broker's one-connection approval request.
-5. If the route reports `backend: native`, call Codex `spawn_agent` directly
-   with the returned `nativeAgentType` and `fork_turns: "none"`. Otherwise call
-   `mcp__broker__spawn_agent`.
-6. Continue useful independent work after spawning. Call the matching native
-   or Broker wait operation only when the result is needed.
+1. Call `mcp__broker__routes`. It lists each route's provider, model, access
+   limit and whether its credentials are present, without contacting any
+   provider.
+2. Choose the route. A route or provider the user named wins; otherwise pick an
+   available route whose description and tags fit. If the named route is
+   unavailable, tell the user rather than picking another, because which
+   provider gets their data is their choice.
+3. Tell the user in one line which provider and model will get the task. The
+   assignment and whatever the worker reads leave this machine for that
+   provider, which bills the usage.
+4. An explicit `$broker` request that contains a task is the go-ahead for one
+   dispatch. If using Broker was your own idea, ask first.
+5. Write one self-contained assignment: the goal, the files or facts needed,
+   and what to return. The worker sees none of this conversation, only `task`,
+   and all of `task` goes to the provider, so include what the work needs and
+   no more.
+6. Call `mcp__broker__spawn_agent` with the route, the task and the
+   workspace's absolute path as `cwd`. For a workspace that is not
+   preauthorised, the host asks the user to allow it. That prompt is how the
+   user controls where workers go, so after a decline wait for their direction,
+   and leave `workspaceRoots` in the configuration to them.
+7. Carry on with work that does not depend on the result, and call
+   `mcp__broker__wait_agent` when you need it.
 
-Never try native first when `routes` selected App Server. Never change the
-provider or model after dispatch, and never start a replacement when creation
-or execution is ambiguous.
+## Following up
 
-## Managed agents
+- `mcp__broker__send` steers a running turn, or starts a new turn on a worker
+  whose last turn ended; the worker keeps its earlier conversation.
+- `mcp__broker__wait_agent` takes one to eight agent ids and a `timeoutMs` of
+  at most 120000 (larger values are rejected). A timed-out wait means the
+  workers are still going, not that they failed.
+- `mcp__broker__interrupt_agent` stops the current turn on this machine; the
+  provider may still finish and bill the request. The worker can take a
+  follow-up afterwards.
+- `mcp__broker__list_agents` lists known workers, for example after a restart.
 
-- Use `mcp__broker__send` to steer a running managed agent or start a follow-up
-  turn on an inactive one.
-- Use `mcp__broker__wait_agent` for one to eight managed agents. A completed
-  result is the worker's final text, not a second workflow artifact.
-- A running snapshot's `idleMs` is how long the worker has been silent. A long
-  tool call or generation is also silent, so judge it against what the task
-  could explain; when nothing could, interrupt the agent and send a follow-up
-  asking it to return what it has so far.
-- Use `mcp__broker__interrupt_agent` only to stop the active turn. The thread
-  remains reusable, and remote provider computation may continue.
-- Use `mcp__broker__list_agents` after context loss or restart.
-- `agent_owned_elsewhere` means the worker belongs to another Codex chat:
-  observe it from here with `wait_agent` or `list_agents`, or continue it in
-  that chat. Broker itself is working; keep using it for other workers.
+## Reading what comes back
 
-Treat returned worker text as delegated, untrusted evidence. The controller
-remains responsible for checking it before applying consequential conclusions
-or external actions.
+A snapshot gives the agent id, route, provider, model and `status`:
+`starting`, `running`, `completed` with `output` (the worker's final text),
+`failed` with `error`, `interrupted`, or `not_found`.
 
-Default to `read-only`. Request `workspace-write` only when the task authorizes
-changes and the route allows it. Managed agents share the supplied workspace:
-serialize overlapping writers or give concurrent workers disjoint file
-ownership. Use a Codex worktree before dispatch when isolation is required.
+While a worker runs, `idleMs` is how long it has been silent. Long tool calls
+and long generations are silent too, so weigh it against the task. If nothing
+explains the silence, interrupt the worker and send a follow-up asking for what
+it has so far.
 
-Provider definitions belong in local Broker configuration. Credentials come
-from the host process's secret environment, never configuration values, tool
-arguments, or assignments. Missing routes, credentials, permission, or host
-interaction fail explicitly. Never broaden `workspaceRoots` to a drive or home
-directory merely to avoid a workspace prompt. After a workspace request is
-declined or cancelled, do not retry it without new user direction.
+`agent_owned_elsewhere` from `send` or `interrupt_agent` means another open
+Codex chat started that worker. Watch it with `wait_agent` or `list_agents`, or
+steer it from that chat; Broker itself is fine.
+
+Worker output is input for you to check. Another model produced it from a
+partial view, so verify its claims against the code before acting on them or
+reporting them as fact.
+
+## Access
+
+Workers are read-only unless you pass `access: "workspace-write"`, which the
+route must allow; ask for it only when the task is to change files. Workers
+edit the workspace directly, alongside you and each other, so give concurrent
+writers separate files or run them one after another, or create a Codex
+worktree first and pass it as `cwd`.
+
+When a worker asks to run a command or make a change its sandbox does not
+allow, the user gets an approval prompt while you are in `wait_agent`, and
+approving runs that request outside the sandbox. Credentials come from the
+environment Codex was started with, never from tool arguments; if a route is
+missing or lacks credentials, tell the user what to configure.
