@@ -3,42 +3,32 @@
 ## API keys
 
 `pi-dsh-mimic` does not read, save, log, or transmit API keys. Provider
-credentials remain under Pi and the selected provider's configuration. Never
-put a provider credential in a prompt, repository file, issue, screenshot, or
-captured request.
+credentials stay in Pi's provider configuration.
 
-If a credential has been exposed, revoke or rotate it with the provider before
-continuing.
-
-## Provider data boundary
+## Data sent to the provider
 
 For target sessions, the task, conversation messages, tool schemas, and later
 tool results are sent through the provider selected in Pi. A model id containing
-`deepseek-v4-pro` activates the extension regardless of provider name. The
-repository-qualified routes are `deepseek/deepseek-v4-pro` and
-`opencode-go/deepseek-v4-pro`; third-party provider compatibility and data
-handling remain the user's responsibility. The extension changes the first
-request's persona and tool surface, but it is not an API proxy and does not
-create a confidential channel.
+`deepseek-v4-pro` activates the extension regardless of provider name, so any
+provider serving such a model receives this data; the tested routes are
+`deepseek/deepseek-v4-pro` and `opencode-go/deepseek-v4-pro`. The extension
+changes the first request's persona and tool surface; it is not an API proxy,
+and requests go to the provider through Pi as usual.
 
 The package adds no model round. The user's ordinary first task is the
 bootstrap request and is billed normally by the selected provider.
 
-## Filesystem and tool ownership
+## Files and tools
 
 The extension runs with the Pi process's filesystem permissions. Its
-`str_replace_editor` can view, create, and modify files. Review the package
-before installation and apply the same workspace and permission controls used
-for any other Pi extension.
+`str_replace_editor` can view, create, and modify files.
 
 The package does not call `setActiveTools` and does not override Pi's native
-`bash`, `read`, `edit`, or `write`. Another extension that registers the same
-`str_replace_editor` name creates a real ownership conflict and should not be
-combined without review.
+`bash`, `read`, `edit`, or `write`. If another extension also registers a tool
+named `str_replace_editor`, the two conflict; do not load both.
 
 ## Reports
 
-Security reports and redacted repository issues should follow the root
-[security guidance](../../SECURITY.md). Do not submit full provider payloads
-until task content, headers, credentials, and unrelated source have been
-removed.
+Report problems as described in the root [SECURITY.md](../../SECURITY.md). If
+you attach a captured provider payload, remove credentials, headers, task
+content you cannot share, and unrelated source first.

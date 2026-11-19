@@ -59,8 +59,6 @@ model
 backend              native | app_server
 status               starting | running | interrupted | completed | failed |
                      not_found
-stalled              present and true only while a running turn is silent
-partialOutput        latest worker text when the turn has no final answer yet
 ```
 
 `completed` contains the latest turn's final assistant text. `failed` contains
@@ -68,17 +66,16 @@ its error. These are turn outcomes, not immutable job terminals: `send` may
 start another turn on an agent whose previous turn completed, failed, or was
 interrupted.
 
-`stalled` is a signal, never an action: an active turn that produced no App
-Server events for `stallTimeoutMs` (default 180000) is reported as stalled
-while it keeps `running`. Broker does not interrupt it, because a long tool
-call or a long generation looks the same from the event stream. `partialOutput`
-carries the last assistant text Broker has seen, so an interrupted or stalled
-worker can still return what it already gathered.
-
 Broker does not expose a second task protocol, revisions, cancellation
 substates, result references, diff manifests, or release handles. App Server
 thread and turn identifiers may appear in diagnostics, but they are not the
 controller's normal working vocabulary.
+
+An agent id identifies a thread, not a Broker process. Another chat's Broker
+may own the agent. `list_agents` and `wait_agent` observe it without taking it
+over. `send` and `interrupt_agent` fail with `agent_owned_elsewhere` while that
+Broker is running; the error means the agent belongs to another chat, not that
+Broker or the route is unavailable.
 
 ## Tool behavior
 
@@ -139,18 +136,15 @@ when a requested agent already has a non-running outcome. Otherwise it waits
 until any target changes materially or the timeout expires, then returns
 compact snapshots for all targets.
 
-App Server owns durable thread history, so a wait also re-reads that history at
-a bounded interval and once more before reporting a timeout. A turn that
-finished without a delivered `turn/completed` notification is therefore
-reported as finished instead of being stranded as running. `timeoutMs` above
-the tool's schema maximum is rejected rather than silently truncated.
-
 If App Server asks for command/file approval or ordinary user input while the
 wait call is active, Broker may use the MCP client's declared elicitation
 capability to present that request. The response is relayed directly to App
 Server and is not retained as a separate Broker task. If the host cannot
 present the request, Broker declines it explicitly; credentials are never
 collected through elicitation.
+
+A target owned by another chat is polled, because that chat's notifications
+do not reach this Broker.
 
 ### `interrupt_agent`
 

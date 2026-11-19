@@ -40,6 +40,40 @@ codex plugin add mixagents-broker@mixagents
 
 安装后新建一个 Codex 任务。
 
+### 与 cc-switch 共存
+
+cc-switch 每次切换 Codex 供应商时，都会用「通用配置」片段重新生成
+`~/.codex/config.toml`，只保留供应商自身的字段、通用配置片段和它自己管理的 MCP
+服务。写在 `config.toml` 里的其它内容，包括插件与 marketplace 注册，会在切换后消失；
+Codex 于是不再认识这个插件，需要重新安装一次。
+
+要让注册跟着走，把下面两段加入 cc-switch 的 Codex 通用配置片段：
+
+```toml
+[marketplaces.mixagents]
+source_type = "git"
+source = "https://github.com/Utopia-V/mixagents.git"
+
+[plugins."mixagents-broker@mixagents"]
+enabled = true
+```
+
+然后在每个 Codex 供应商的编辑弹窗里勾上「应用通用配置」：复选框在 `config.toml` 编辑器
+右上角，旁边的「编辑通用配置」用来修改片段内容。没有勾选的供应商在切换时不会写入这段
+片段，插件注册仍然会丢。cc-switch 自己的提示也写明了这一点：新安装插件或 Hook 后需要
+重新同步一次通用配置。
+
+切换后可以用 `codex plugin list` 确认注册还在。注册确实丢了时，按顺序执行：
+
+```bash
+codex plugin marketplace remove mixagents
+codex plugin marketplace add Utopia-V/mixagents
+codex plugin add mixagents-broker@mixagents
+```
+
+第一条不能省，残留的 marketplace 副本会让 `add` 报「already added from a different
+source」。修好后新建一个 Codex 任务；`$broker` 还没有出现时，完全退出并重新打开 Codex。
+
 ## 配置 route
 
 创建配置文件：
@@ -84,10 +118,6 @@ Broker 通常会自动解析 Codex 可执行文件。Windows 上通过 npm 安�
 同一版本自带的原生 `codex.exe`，不会把 `codex.cmd` 或 `codex.ps1` shim 当作可执行文件。
 无法自动解析时，在配置顶层设置 `codexBin`，或把
 `MIXAGENTS_BROKER_CODEX_BIN` 设为 Codex 可执行文件的完整路径。
-
-`stallTimeoutMs` 可选，默认 `180000`。运行中的 agent 若在这么长时间内没有产生任何
-App Server 事件，快照会带 `stalled: true`；Broker 不会自行中断它。想让卡住的 worker
-更早暴露就调小，若某条 route 的单次工具调用或单次生成本身就可能耗时数分钟则调大。
 
 ## 配置凭据
 
@@ -153,6 +183,12 @@ controller 看到的状态只有 `starting`、`running`、`completed`、`failed`
 `interrupted` 和 `not_found`。如果无法保持配置的 provider、model、workspace 或
 权限边界，Broker 会直接失败，不会替换 route。
 
+多个 Codex 对话可以共用同一个 Broker 数据目录，彼此都能看到对方的 agent。
+`list_agents` 和 `wait_agent` 观察其他对话拥有的 agent 时不会接管它；由于收不到
+那个对话的通知，`wait_agent` 会轮询它的状态。只要那个对话的 Broker 仍在运行，
+对这类 agent 调用 `send` 或 `interrupt_agent` 会返回 `agent_owned_elsewhere`。
+那个 Broker 退出以后，任何对话都可以继续这个 agent。
+
 详细契约见 [controller-contract.md](docs/controller-contract.md) 和
 [backend-and-lifecycle-policy.md](docs/backend-and-lifecycle-policy.md)。
 
@@ -191,3 +227,12 @@ npm run pack:check
 发布到 npm 的 package 位于 `plugin/mixagents-broker`，其中包含 plugin manifest、
 `$broker` Skill、STDIO MCP 配置和预编译 JavaScript runtime。生产运行时没有第三方
 Node.js 依赖。
+
+`npm run check` 使用模拟的 App Server。`npm run test:codex` 则让 Broker 的 MCP
+server 连接真实的 Codex：默认使用 `PATH` 中的 `codex`，也可以通过
+`MIXAGENTS_BROKER_CODEX_BIN` 指定其他构建。模型由测试进程内的模拟 Responses
+provider 代替，Codex home、Broker 数据目录和 workspace 均为临时目录，因此这项检查
+不需要 provider 账号或密钥，也不会读写 `~/.codex`。它覆盖 route 与凭据隔离、
+follow-up turn、provider 失败、中断、重启恢复，以及 worker shell 命令的凭据过滤。
+CI 每周、每次推送到 `main` 以及每个修改 Broker 的 pull request 都会用最新的稳定版
+Codex 运行这项检查。

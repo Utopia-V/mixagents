@@ -32,6 +32,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "npm run build && node --test test/*.test.mjs",
+    "test:codex": "npm run build && node --test --test-concurrency=1 test/codex/*.test.mjs",
     "check": "npm run typecheck && npm test",
     "pack:check": "npm pack --dry-run ./plugin/mixagents-broker"
   }

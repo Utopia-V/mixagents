@@ -1,30 +1,40 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+// Offline stand-in for `codex app-server --stdio`. Several processes may share
+// one CODEX_HOME, as two Broker sessions over one data directory do. It
+// mirrors what real App Server does there:
+// - each thread is persisted in its own file, so processes do not clobber
+//   each other's state;
+// - a process that starts or resumes a thread holds its writer lock until the
+//   process exits, idle or not; thread/resume elsewhere is refused meanwhile;
+// - a thread not loaded in this process reads as notLoaded, and its unfinished
+//   turn as interrupted without a completion time.
+
+import {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 
-const statePath = path.join(process.env.CODEX_HOME, "fake-app-server.json");
-await mkdir(process.env.CODEX_HOME, { recursive: true });
+const home = process.env.CODEX_HOME;
+const threadsDirectory = path.join(home, "fake-threads");
+const locksDirectory = path.join(home, "fake-locks");
+mkdirSync(threadsDirectory, { recursive: true });
+mkdirSync(locksDirectory, { recursive: true });
 
-let state = { nextThread: 1, nextTurn: 1, threads: {} };
-try {
-  state = JSON.parse(await readFile(statePath, "utf8"));
-} catch {
-  // A new fake runtime starts empty.
-}
-
+const loaded = new Map();
+let nextId = 1;
 let nextServerRequest = 1;
 const pendingServerRequests = new Map();
 
 function send(message) {
   process.stdout.write(`${JSON.stringify(message)}\n`);
-}
-
-async function persist() {
-  const temporary = `${statePath}.${process.pid}.tmp`;
-  await writeFile(temporary, `${JSON.stringify(state)}\n`, "utf8");
-  await rename(temporary, statePath);
 }
 
 function response(id, result) {
@@ -33,6 +43,78 @@ function response(id, result) {
 
 function failure(id, code, message) {
   send({ jsonrpc: "2.0", id, error: { code, message } });
+}
+
+function now() {
+  return Math.floor(Date.now() / 1000);
+}
+
+function threadPath(threadId) {
+  return path.join(threadsDirectory, `${threadId}.json`);
+}
+
+function lockPath(threadId) {
+  return path.join(locksDirectory, `${threadId}.json`);
+}
+
+function persist(thread) {
+  const temporary = `${threadPath(thread.id)}.${process.pid}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(thread)}\n`, "utf8");
+  renameSync(temporary, threadPath(thread.id));
+}
+
+function stored(threadId) {
+  try {
+    return JSON.parse(readFileSync(threadPath(threadId), "utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+function alive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
+}
+
+// Returns false while another live process holds the thread's writer lock.
+function claim(threadId) {
+  try {
+    const holder = JSON.parse(readFileSync(lockPath(threadId), "utf8")).pid;
+    if (holder !== process.pid && alive(holder)) {
+      return false;
+    }
+  } catch {
+    // No lock, or an unreadable one: treat it as free.
+  }
+  writeFileSync(lockPath(threadId), `${JSON.stringify({ pid: process.pid })}\n`);
+  return true;
+}
+
+// On a graceful exit App Server records the unfinished turn as interrupted
+// and releases the writer lock.
+function shutdown() {
+  for (const [threadId, thread] of loaded) {
+    const turn = thread.turns.at(-1);
+    if (turn?.status === "inProgress") {
+      finish(thread, turn, "interrupted");
+    }
+    try {
+      unlinkSync(lockPath(threadId));
+    } catch {
+      // Already gone.
+    }
+  }
+}
+
+// What App Server reports for a turn it does not have loaded.
+function unloadedTurn(turn) {
+  return turn.status === "inProgress"
+    ? { ...turn, status: "interrupted", completedAt: null }
+    : turn;
 }
 
 function textFromInput(input) {
@@ -50,13 +132,21 @@ function turnPayload(turn) {
     items: turn.items,
     itemsView: { type: "full" },
     error: turn.error,
-    startedAt: 1,
-    completedAt: turn.status === "inProgress" ? null : 2,
+    startedAt: turn.startedAt,
+    completedAt: turn.completedAt ?? null,
     durationMs: turn.status === "inProgress" ? null : 1,
   };
 }
 
-function threadPayload(thread, includeTurns = false) {
+function threadPayload(thread, { includeTurns = false, isLoaded = true } = {}) {
+  const turns = isLoaded ? thread.turns : thread.turns.map(unloadedTurn);
+  let status = { type: "notLoaded" };
+  if (isLoaded) {
+    status =
+      thread.turns.at(-1)?.status === "inProgress"
+        ? { type: "active", activeFlags: [] }
+        : { type: "idle" };
+  }
   return {
     id: thread.id,
     sessionId: thread.id,
@@ -72,11 +162,8 @@ function threadPayload(thread, includeTurns = false) {
     createdAt: 1,
     updatedAt: 2,
     recencyAt: 2,
-    status:
-      thread.turns.at(-1)?.status === "inProgress"
-        ? { type: "active", activeFlags: [] }
-        : { type: "idle" },
-    path: statePath,
+    status,
+    path: threadPath(thread.id),
     cwd: thread.cwd,
     cliVersion: "fake",
     source: "appServer",
@@ -86,21 +173,17 @@ function threadPayload(thread, includeTurns = false) {
     agentRole: null,
     gitInfo: null,
     name: null,
-    turns: includeTurns ? thread.turns.map(turnPayload) : [],
+    turns: includeTurns ? turns.map(turnPayload) : [],
   };
 }
 
-function currentTurn(thread) {
-  return thread.turns.at(-1);
+function finish(thread, turn, status) {
+  turn.status = status;
+  turn.completedAt = now();
+  persist(thread);
 }
 
-async function complete(
-  thread,
-  turn,
-  text,
-  status = "completed",
-  { notify = true } = {},
-) {
+function complete(thread, turn, text, status = "completed") {
   if (turn.status !== "inProgress") return;
   const item = {
     type: "agentMessage",
@@ -111,10 +194,8 @@ async function complete(
     delivery: null,
   };
   turn.items.push(item);
-  turn.status = status;
   turn.error = status === "failed" ? { message: text } : null;
-  await persist();
-  if (!notify) return;
+  finish(thread, turn, status);
   send({
     jsonrpc: "2.0",
     method: "item/completed",
@@ -125,40 +206,6 @@ async function complete(
     method: "turn/completed",
     params: { threadId: thread.id, turn: turnPayload(turn) },
   });
-}
-
-async function emitMessage(thread, turn, text, phase = "commentary") {
-  if (turn.status !== "inProgress") return;
-  const item = {
-    type: "agentMessage",
-    id: `message_${turn.id}_${turn.items.length}`,
-    text,
-    phase,
-    memoryCitation: null,
-    delivery: null,
-  };
-  turn.items.push(item);
-  await persist();
-  send({
-    jsonrpc: "2.0",
-    method: "item/completed",
-    params: { threadId: thread.id, turnId: turn.id, item, completedAtMs: 2 },
-  });
-}
-
-async function persistCompletionWithoutNotification(thread, turn, text) {
-  const item = {
-    type: "agentMessage",
-    id: `message_${turn.id}`,
-    text,
-    phase: "final_answer",
-    memoryCitation: null,
-    delivery: null,
-  };
-  turn.items.push(item);
-  turn.status = "completed";
-  turn.error = null;
-  await persist();
 }
 
 async function askApproval(thread, turn) {
@@ -190,22 +237,23 @@ async function askApproval(thread, turn) {
   try {
     const approval = await result;
     const approved = approval?.decision === "accept";
-    await complete(thread, turn, approved ? "approval:approved" : "approval:declined");
+    complete(thread, turn, approved ? "approval:approved" : "approval:declined");
   } catch (error) {
-    await complete(thread, turn, `approval:${error.message}`, "failed");
+    complete(thread, turn, `approval:${error.message}`, "failed");
   }
 }
 
-async function startTurn(thread, text) {
+function startTurn(thread, text) {
   const turn = {
-    id: `turn_${state.nextTurn++}`,
+    id: `turn_${process.pid}_${nextId++}`,
     status: "inProgress",
     items: [],
     error: null,
+    startedAt: now(),
   };
   thread.turns.push(turn);
   if (!thread.preview) thread.preview = text;
-  await persist();
+  persist(thread);
   queueMicrotask(() => {
     send({
       jsonrpc: "2.0",
@@ -217,54 +265,47 @@ async function startTurn(thread, text) {
         selectedCredential: Boolean(process.env.TEST_PROVIDER_KEY),
         unrelatedCredential: Boolean(process.env.UNRELATED_SECRET),
       });
-      setTimeout(() => void complete(thread, turn, audit), 15);
+      setTimeout(() => complete(thread, turn, audit), 15);
     } else if (text.includes("report cwd")) {
-      setTimeout(() => void complete(thread, turn, `cwd:${thread.cwd}`), 15);
+      setTimeout(() => complete(thread, turn, `cwd:${thread.cwd}`), 15);
     } else if (text.includes("crash after persist")) {
       setTimeout(() => {
-        void persistCompletionWithoutNotification(
-          thread,
-          turn,
-          "result:recovered after crash",
-        ).then(() => process.exit(77));
+        // Persist the completion, then die before notifying.
+        turn.items.push({
+          type: "agentMessage",
+          id: `message_${turn.id}`,
+          text: "result:recovered after crash",
+          phase: "final_answer",
+          memoryCitation: null,
+          delivery: null,
+        });
+        finish(thread, turn, "completed");
+        process.exit(77);
       }, 15);
     } else if (text.includes("approval")) {
       void askApproval(thread, turn);
-    } else if (text.includes("complete without notification")) {
-      setTimeout(
-        () =>
-          void complete(
-            thread,
-            turn,
-            "result:completed without notification",
-            "completed",
-            { notify: false },
-          ),
-        15,
-      );
-    } else if (text.includes("partial then silent")) {
-      // Publishes one message, then goes quiet without finishing the turn.
-      setTimeout(() => void emitMessage(thread, turn, "partial:research notes"), 10);
-    } else if (text.includes("chatty")) {
-      // Keeps producing events so the turn never looks stalled.
-      let tick = 0;
-      const timer = setInterval(() => {
-        tick += 1;
-        void emitMessage(thread, turn, `tick:${tick}`);
-        if (tick >= 100) clearInterval(timer);
-      }, 100);
     } else if (text.includes("slow")) {
       // Stay active until interrupted.
+    } else if (text.includes("delayed")) {
+      setTimeout(() => complete(thread, turn, `result:${text}`), 700);
     } else if (text.includes("fail")) {
-      setTimeout(() => void complete(thread, turn, "fake provider failure", "failed"), 15);
+      setTimeout(() => complete(thread, turn, "fake provider failure", "failed"), 15);
     } else {
-      setTimeout(() => void complete(thread, turn, `result:${text}`), 15);
+      setTimeout(() => complete(thread, turn, `result:${text}`), 15);
     }
   });
   return turn;
 }
 
-async function handle(request) {
+function loadedThread(id, threadId) {
+  const thread = loaded.get(threadId);
+  if (!thread) {
+    failure(id, -32600, `thread not found: ${threadId}`);
+  }
+  return thread;
+}
+
+function handle(request) {
   const { id, method, params = {} } = request;
   if (method === "initialize") {
     response(id, {
@@ -276,15 +317,16 @@ async function handle(request) {
   }
   if (method === "thread/start") {
     const thread = {
-      id: `thread_${state.nextThread++}`,
+      id: `thread_${process.pid}_${nextId++}`,
       modelProvider: params.modelProvider,
       model: params.model === "force-mismatch" ? "substituted-model" : params.model,
       cwd: params.cwd,
       preview: "",
       turns: [],
     };
-    state.threads[thread.id] = thread;
-    await persist();
+    persist(thread);
+    claim(thread.id);
+    loaded.set(thread.id, thread);
     response(id, {
       thread: threadPayload(thread),
       model: thread.model,
@@ -302,63 +344,83 @@ async function handle(request) {
     });
     return;
   }
-  if (method === "thread/resume" || method === "thread/read") {
-    const thread = state.threads[params.threadId];
+  if (method === "thread/read") {
+    const thread = loaded.get(params.threadId) ?? stored(params.threadId);
     if (!thread) {
       failure(id, -32602, `Thread ${params.threadId} not found`);
       return;
     }
-    if (method === "thread/read" && thread.preview.includes("thread read unsupported")) {
-      failure(id, -32601, "Method not found: thread/read");
-      return;
-    }
-    // Mirrors App Server: turns are only returned when explicitly requested.
-    const includeTurns = method === "thread/resume" || params.includeTurns === true;
     response(id, {
-      thread: threadPayload(thread, includeTurns),
+      thread: threadPayload(thread, {
+        includeTurns: params.includeTurns === true,
+        isLoaded: loaded.has(thread.id),
+      }),
+    });
+    return;
+  }
+  if (method === "thread/resume") {
+    let thread = loaded.get(params.threadId);
+    if (!thread) {
+      const record = stored(params.threadId);
+      if (!record) {
+        failure(id, -32602, `Thread ${params.threadId} not found`);
+        return;
+      }
+      if (!claim(record.id)) {
+        appendFileSync(path.join(home, "fake-resume-refusals.log"), `${record.id}\n`);
+        failure(id, -32600, `thread ${record.id} already has an active writer`);
+        return;
+      }
+      thread = { ...record, turns: record.turns.map(unloadedTurn) };
+      loaded.set(thread.id, thread);
+    }
+    response(id, {
+      thread: threadPayload(thread, { includeTurns: true }),
       model: thread.model,
       modelProvider: thread.modelProvider,
     });
     return;
   }
   if (method === "thread/list") {
-    response(id, {
-      data: Object.values(state.threads).map((thread) => threadPayload(thread)),
-      nextCursor: null,
-      backwardsCursor: null,
-    });
+    const providers = Array.isArray(params.modelProviders) ? params.modelProviders : [];
+    const data = readdirSync(threadsDirectory)
+      .filter((name) => name.endsWith(".json"))
+      .map((name) => stored(name.slice(0, -".json".length)))
+      .filter((thread) => thread && (providers.length === 0 || providers.includes(thread.modelProvider)))
+      .map((thread) =>
+        threadPayload(loaded.get(thread.id) ?? thread, { isLoaded: loaded.has(thread.id) }),
+      );
+    response(id, { data, nextCursor: null, backwardsCursor: null });
     return;
   }
   if (method === "turn/start") {
-    const thread = state.threads[params.threadId];
-    if (!thread) {
-      failure(id, -32602, `Thread ${params.threadId} not found`);
-      return;
-    }
-    const turn = await startTurn(thread, textFromInput(params.input));
+    const thread = loadedThread(id, params.threadId);
+    if (!thread) return;
+    const turn = startTurn(thread, textFromInput(params.input));
     response(id, { turn: turnPayload(turn) });
     return;
   }
   if (method === "turn/steer") {
-    const thread = state.threads[params.threadId];
-    const turn = thread && currentTurn(thread);
+    const thread = loadedThread(id, params.threadId);
+    if (!thread) return;
+    const turn = thread.turns.at(-1);
     if (!turn || turn.id !== params.expectedTurnId || turn.status !== "inProgress") {
       failure(id, -32602, "No matching active turn");
       return;
     }
     response(id, { turnId: turn.id });
-    await complete(thread, turn, `steered:${textFromInput(params.input)}`);
+    complete(thread, turn, `steered:${textFromInput(params.input)}`);
     return;
   }
   if (method === "turn/interrupt") {
-    const thread = state.threads[params.threadId];
-    const turn = thread && currentTurn(thread);
+    const thread = loadedThread(id, params.threadId);
+    if (!thread) return;
+    const turn = thread.turns.at(-1);
     if (!turn || turn.id !== params.turnId) {
       failure(id, -32602, "No matching active turn");
       return;
     }
-    turn.status = "interrupted";
-    await persist();
+    finish(thread, turn, "interrupted");
     response(id, {});
     send({
       jsonrpc: "2.0",
@@ -370,6 +432,11 @@ async function handle(request) {
   failure(id, -32601, `Method not found: ${method}`);
 }
 
+// After a crash (SIGKILL) the locks go stale and the next claimant sees that
+// their holder is dead.
+process.on("exit", shutdown);
+process.on("SIGTERM", () => process.exit(0));
+
 const lines = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
 lines.on("line", (line) => {
   if (!line.trim()) return;
@@ -380,7 +447,7 @@ lines.on("line", (line) => {
     return;
   }
   if (message.method && message.id !== undefined) {
-    void handle(message);
+    handle(message);
     return;
   }
   if (message.id !== undefined && (message.result !== undefined || message.error !== undefined)) {

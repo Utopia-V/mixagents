@@ -1,21 +1,27 @@
-name: "Codex subagent 运行或安装故障"
-description: "报告 codex-deepseek-subagent 的安装、Hook、provider 或 child 故障。"
-title: ""
+name: "问题报告 / Bug report"
+description: "报告 MixAgents Broker 或 pi-dsh-mimic 的问题。 / Report a problem with MixAgents Broker or pi-dsh-mimic."
 labels:
   - bug
 body:
   - type: markdown
     attributes:
-      value: |
-        请写下你实际看到的行为。不需要先判断根因，未知信息可以留空。
+      value: "请不要粘贴 API key、token 或完整的请求头。 / Please don't paste API keys, tokens or full request headers."
 
-        **不要提交 API key、token、完整请求头、未脱敏配置、完整 ciphertext 或无关私有源码。**
+  - type: dropdown
+    id: component
+    attributes:
+      label: "组件 / Component"
+      options:
+        - "MixAgents Broker"
+        - "pi-dsh-mimic"
+    validations:
+      required: true
 
   - type: textarea
     id: summary
     attributes:
       label: "发生了什么 / What happened"
-      description: "说明失败的行为、实际结果，以及你原本期望发生什么。"
+      description: "实际结果，以及你期望的结果。 / What you saw and what you expected."
     validations:
       required: true
 
@@ -23,39 +29,24 @@ body:
     id: environment
     attributes:
       label: "环境 / Environment"
-      description: "填写你知道的版本和调用方式；不知道的项目可以删掉。不要填写凭据值。"
       placeholder: |
-        Codex surface and version:
-        Operating system:
-        Parent model/provider:
-        Child model/provider:
-        Hook installed/trusted:
-    validations:
-      required: true
+        Package version:
+        Codex or Pi version:
+        OS and Node.js version:
+        Provider and model (Broker: route name):
 
   - type: textarea
     id: reproduction
     attributes:
-      label: "怎样复现 / Reproduction"
-      description: "列出能够复现问题的最少步骤；如果不能稳定复现，说明当时做了什么。"
+      label: "怎样复现 / How to reproduce"
       placeholder: |
-        1. ...
-        2. ...
-        3. ...
-    validations:
-      required: true
+        1.
+        2.
+        3.
 
   - type: textarea
-    id: evidence
+    id: logs
     attributes:
-      label: "补充证据 / Additional evidence"
-      description: "可选。填写已运行的对照、退出码或最短脱敏日志。"
-      render: shell
-
-  - type: checkboxes
-    id: sensitive-data
-    attributes:
-      label: "敏感信息 / Sensitive data"
-      options:
-        - label: "我没有提交 API key、token、完整请求头、未脱敏配置或其他秘密。"
-          required: true
+      label: "日志 / Logs"
+      description: "可选。 / Optional."
+      render: text

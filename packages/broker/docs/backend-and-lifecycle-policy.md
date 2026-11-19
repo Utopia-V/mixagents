@@ -132,6 +132,26 @@ App Server thread identity. It stores only small non-secret runtime metadata
 that cannot be reconstructed from App Server; there is no second job database
 or copied conversation archive.
 
+Several Broker processes, one per Codex chat, may share a data directory and
+so the same thread history. A thread can be written by one App Server process
+at a time: the process that started or resumed it holds the thread's writer
+lock until it exits, and `thread/resume` elsewhere is refused meanwhile.
+`list_agents` and `wait_agent` therefore read a thread this process does not
+own with `thread/read` and do not resume it. `wait_agent` polls such a thread,
+because the owner's notifications reach only the owner.
+
+App Server reports a turn that is running in another process the same way as
+one whose process died mid-turn: thread `notLoaded`, latest turn `interrupted`,
+no `completedAt`. For that case only, Broker settles the question with the
+writer lock: it tries `thread/resume`. A refusal means a live owner, reported
+as `running`; success means the owner is gone, the turn really was interrupted,
+and this process now owns the thread. One `wait_agent` call probes a target at
+most once.
+
+`send` and `interrupt_agent` need writer control. While another live process
+holds it, they fail with `agent_owned_elsewhere` and Broker leaves the thread
+alone; after that process exits, they resume the thread here.
+
 Configuration changes that affect provider execution create a new runtime
 identity for new agents; presentation-only description and tag edits do not.
 An existing agent continues through the runtime identity embedded in its

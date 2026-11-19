@@ -1,0 +1,42 @@
+name: Broker on current Codex
+
+# Runs Broker against the latest stable Codex with a local mock provider.
+# No provider is called and no secret is used.
+
+on:
+  pull_request:
+    paths:
+      - "packages/broker/**"
+      - ".github/workflows/broker-codex.yml"
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: broker-codex-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-codex:
+    name: Broker with real Codex
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/broker
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: npm install --global @openai/codex
+      - run: codex --version
+      - run: npm ci
+      - run: npm run test:codex

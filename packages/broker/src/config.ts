@@ -55,24 +55,6 @@ function optionalString(value: unknown, label: string): string | undefined {
   return stringValue(value, label);
 }
 
-/**
- * An active turn that produces no App Server events for this long is reported
- * as `stalled`. It is only a signal: Broker never interrupts a worker by
- * itself, because a long tool call or a long generation looks identical from
- * the event stream.
- */
-const DEFAULT_STALL_TIMEOUT_MS = 180_000;
-
-function optionalPositiveInteger(value: unknown, label: string): number | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (!Number.isInteger(value) || (value as number) <= 0) {
-    throw new BrokerError("invalid_config", `${label} must be a positive integer`);
-  }
-  return value as number;
-}
-
 function expandHome(input: string): string {
   if (input === "~") {
     return homedir();
@@ -319,16 +301,12 @@ export function parseConfig(
     optionalString(input.codexBin, "codexBin") ??
     optionalString(environment.MIXAGENTS_BROKER_CODEX_BIN, "MIXAGENTS_BROKER_CODEX_BIN") ??
     "codex";
-  const stallTimeoutMs =
-    optionalPositiveInteger(input.stallTimeoutMs, "stallTimeoutMs") ??
-    DEFAULT_STALL_TIMEOUT_MS;
 
   const result: BrokerConfig = {
     path: path.resolve(configPath),
     workspaceRoots: rootsValue.map((root) => path.resolve(expandHome(root))),
     dataDir: path.resolve(expandHome(dataDirValue)),
     codexBin: expandHome(codexBin),
-    stallTimeoutMs,
     routes,
   };
   if (defaultRoute) {

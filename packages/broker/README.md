@@ -43,6 +43,46 @@ codex plugin add mixagents-broker@mixagents
 
 Start a new Codex task after installation.
 
+### Coexisting with cc-switch
+
+Every time cc-switch switches a Codex provider, it regenerates
+`~/.codex/config.toml` from the selected provider's fields, its common config
+snippet, and the MCP servers cc-switch manages. Anything else in `config.toml`,
+including plugin and marketplace registration, is gone after a switch — Codex no
+longer knows the plugin and it has to be installed again.
+
+Keep the registration by adding both blocks below to cc-switch's Codex common
+config snippet:
+
+```toml
+[marketplaces.mixagents]
+source_type = "git"
+source = "https://github.com/Utopia-V/mixagents.git"
+
+[plugins."mixagents-broker@mixagents"]
+enabled = true
+```
+
+Then tick "apply common config" (应用通用配置) for every Codex provider: the
+checkbox sits at the top right of the `config.toml` editor in the provider
+dialog, next to the "edit common config" (编辑通用配置) link that opens the
+snippet. A provider without the checkbox does not receive the snippet on a
+switch, and the plugin registration is still lost. cc-switch's own guidance says
+the same: after installing a plugin or hook, sync the common config again.
+
+After a switch, `codex plugin list` confirms the registration. If it is really
+gone, run these in order:
+
+```bash
+codex plugin marketplace remove mixagents
+codex plugin marketplace add Utopia-V/mixagents
+codex plugin add mixagents-broker@mixagents
+```
+
+The first command is required: a stale marketplace copy makes `add` fail with
+"already added from a different source". Start a new Codex task afterwards, and
+restart Codex if `$broker` is still missing.
+
 ## Configure routes
 
 Create the configuration file:
@@ -92,12 +132,6 @@ npm-managed installation is resolved to its matching native `codex.exe`
 instead of the `codex.cmd` or `codex.ps1` shim. If automatic resolution is not
 available, set the top-level `codexBin` field or
 `MIXAGENTS_BROKER_CODEX_BIN` to the full path of the Codex executable.
-
-`stallTimeoutMs` is optional and defaults to `180000`. A running agent whose
-active turn produced no App Server events for that long is reported with
-`stalled: true`; Broker never interrupts it by itself. Lower it to surface
-stuck workers sooner, raise it when a route legitimately spends minutes inside
-a single tool call or a single long generation.
 
 ## Configure credentials
 
@@ -173,6 +207,13 @@ The controller sees `starting`, `running`, `completed`, `failed`,
 configured provider, model, workspace, or access boundary; it does not
 substitute another route.
 
+Several Codex chats can share one Broker data directory, and each sees the
+others' agents. `list_agents` and `wait_agent` observe an agent owned by
+another chat without taking it over; `wait_agent` polls it, since that chat's
+notifications do not reach this one. `send` and `interrupt_agent` on such an
+agent fail with `agent_owned_elsewhere` while the other chat's Broker is
+running. Once it has exited, the agent can be continued from any chat.
+
 The detailed contracts are in
 [controller-contract.md](docs/controller-contract.md) and
 [backend-and-lifecycle-policy.md](docs/backend-and-lifecycle-policy.md).
@@ -219,3 +260,13 @@ The npm package is built at
 `plugin/mixagents-broker`. It contains the plugin manifest, `$broker` Skill,
 STDIO MCP configuration, and prebuilt JavaScript runtime. Production runtime
 dependencies are empty.
+
+`npm run check` uses a fake App Server. `npm run test:codex` runs the Broker
+MCP server against the real `codex` on `PATH`, or the build named by
+`MIXAGENTS_BROKER_CODEX_BIN`. A mock Responses provider inside the test stands
+in for the model, and the Codex home, Broker data directory, and workspace are
+temporary, so the check needs no provider account or key and never touches
+`~/.codex`. It covers route and credential isolation, follow-up turns, provider
+failure, interruption, restart recovery, and the credential filter on worker
+shell commands. CI runs it with the latest stable Codex every week, on pushes
+to `main`, and on pull requests that change Broker.

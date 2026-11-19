@@ -4,15 +4,15 @@
 
 `pi-dsh-mimic` reproduces only the most useful part of DSH: the first model
 request. The real task enters a Minimal-persona environment with
-`bash/str_replace_editor`, establishing a verified high-capability V4 Pro
-trajectory. After the first valid response, requests return to Pi-native form
-and the model regains Pi's complete tool catalog and other plugins.
+`bash/str_replace_editor`, which puts V4 Pro on the high-scoring trajectory
+seen in these experiments. After the first valid response, requests return to
+Pi-native form and the model regains Pi's complete tool catalog and other
+plugins.
 
 There is no need to reproduce the complete DSH harness. DSH Minimal supplies
 the first-request training interface; Pi continues to own sessions, tool
-execution, file editing, and plugin composition. The result combines the
-96–98 Project2 band observed in these experiments with Pi's mature agent
-runtime.
+execution, file editing, and plugin composition. On Project2 this flow scored
+96–98 while Pi stayed the agent runtime.
 
 ## Experimental basis
 
@@ -20,8 +20,8 @@ Project2 V4.1b is a personal, self-hosted long-horizon repository-maintenance
 evaluation. The model repairs a deliberately broken multi-module Python backend
 and ESP32-S3 firmware project covering authentication and session privacy,
 database migrations, cross-module features, backward compatibility,
-Wi-Fi/MQTT/NVS/protocol and ESP-IDF contracts, and final delivery evidence. It
-is not a general benchmark.
+Wi-Fi/MQTT/NVS/protocol and ESP-IDF contracts, and final delivery evidence.
+Every result below comes from this single task.
 
 Local runs use this Project2 V4.1b task at frozen commit
 `04255b55f16c4439e538239fb9783070c4165081`. When a run resumed after an
@@ -34,19 +34,19 @@ Final judgment comes from the F3 ambient-session boundary, F6 migration, F8 ESP
 contract, hidden tests, and complete delivery. Evaluator IDs and exclusions are
 recorded in the [evidence ledger](project2-evidence.md).
 
-## DSH Minimal established that the capability is reachable
+## External DSH results
 
-External results provided a clear calibration. Under the same WSL/max/build
+External runs of the same task give a calibration. Under the same WSL/max/build
 conditions, DSH Minimal scored 99 and 96, while Standard scored 91 and PTC
 scored 92. Later Anchored Standard runs restored a 25-tool catalog after the
 first tool call and scored 98 and 99.
 
-These results establish two facts: the first request's persona and schemas can
+These results show two things: the first request's persona and schemas can
 change V4 Pro's engineering trajectory, and a complete tool catalog does not
 automatically break the trajectory after it has formed. `pi-dsh-mimic` brings
 both properties into Pi.
 
-## The decisive Pi comparison
+## Matched comparison in Pi
 
 A matched local pair narrowed the main difference to the first request:
 
@@ -61,7 +61,7 @@ the voice path first resolved the current session before passing it onward.
 That self-correction directly explains F3 16/16 and is more meaningful than a
 first-line phrase.
 
-## Negative results narrowed the implementation
+## Negative results
 
 Later runs tested the remaining explanations directly:
 
@@ -89,11 +89,9 @@ implementations:
 
 The initial OpenCode Go request hit an account opt-in 403 before producing a
 token. The same session resumed after opt-in, stopped naturally, and scored 98.
-The run verifies that the current implementation reaches the same high band
-through OpenCode Go.
 
-Both the official DeepSeek API and OpenCode Go reached 96–98. A weaker OpenCode
-model is no longer needed to explain the observed gap.
+Both the official DeepSeek API and OpenCode Go reached 96–98, so a weaker model
+behind OpenCode is no longer needed to explain the observed gap.
 
 ## Why Pi plugins remain available
 
@@ -109,9 +107,6 @@ The extension never calls `setActiveTools` and never overrides Pi's `bash`,
 only when a fresh target session arms. From request #2, Pi again owns the
 provider payload and active catalog, so tools from other packages appear
 naturally.
-
-That is the boundary between a mimic and a complete harness port: the extension
-establishes a DSH Minimal first request, while Pi remains the execution runtime.
 
 ## Product behavior and evidence
 

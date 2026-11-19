@@ -30,8 +30,6 @@ interface WaitTarget {
   threadId: string;
 }
 
-const WAIT_REFRESH_INTERVAL_MS = 5_000;
-
 function nonEmptyString(value: unknown, label: string): string {
   if (typeof value !== "string" || value.trim() === "") {
     throw new BrokerError("invalid_input", `${label} must be a non-empty string`);
@@ -46,14 +44,16 @@ function clampTimeout(value: unknown): number {
   if (!Number.isInteger(value) || (value as number) < 0) {
     throw new BrokerError("invalid_input", "timeoutMs must be a non-negative integer");
   }
-  if ((value as number) > 120_000) {
-    throw new BrokerError("invalid_input", "timeoutMs must be at most 120000");
-  }
-  return value as number;
+  return Math.min(value as number, 120_000);
 }
 
-function hasSettledAgent(agents: AgentSnapshot[]): boolean {
-  return agents.some((agent) => agent.status !== "running" && agent.status !== "starting");
+// Another process's App Server sends this one no notifications, so a wait on
+// a thread owned elsewhere re-reads it on this interval.
+const FOREIGN_POLL_INTERVAL_MS = 500;
+const LIST_READ_CONCURRENCY = 8;
+
+function isTerminalStatus(status: AgentSnapshot["status"]): boolean {
+  return status !== "running" && status !== "starting";
 }
 
 async function waitForRuntimeUpdate(
@@ -103,7 +103,6 @@ export class Broker {
     this.#runtimes = new RuntimeManager(
       config.dataDir,
       config.codexBin,
-      config.stallTimeoutMs,
       this.#environment,
       options.processOverride,
     );
@@ -194,7 +193,7 @@ export class Broker {
       agentIds.map(async (agentId) => this.#runtimes.forAgent(agentId)),
     );
     const deadline = Date.now() + timeoutMs;
-    let nextRefreshAt = Date.now() + WAIT_REFRESH_INTERVAL_MS;
+    const liveOwners = new Set<string>();
 
     while (true) {
       let handledInteraction = false;
@@ -207,69 +206,65 @@ export class Broker {
         }
       }
 
-      if (handledInteraction) {
-        continue;
-      }
-
       const runtimes = [...new Set(targets.map((target) => target.runtime))];
       const baselines = new Map(runtimes.map((runtime) => [runtime, runtime.revision]));
       const agents = await Promise.all(
-        targets.map((target) => target.runtime.snapshotFor(target.threadId)),
+        targets.map((target) => target.runtime.snapshotFor(target.threadId, liveOwners)),
       );
-      if (hasSettledAgent(agents)) {
+      if (agents.some((agent) => isTerminalStatus(agent.status))) {
         return { timedOut: false, agents };
       }
       if (options.signal?.aborted) {
         throw new BrokerError("wait_cancelled", "wait_agent was cancelled");
       }
-
-      const now = Date.now();
-      const remaining = deadline - now;
+      const remaining = deadline - Date.now();
       if (remaining <= 0) {
-        break;
+        return { timedOut: true, agents };
       }
-      if (nextRefreshAt <= now) {
-        const refreshed = await Promise.all(
-          targets.map((target) => target.runtime.refresh(target.threadId)),
-        );
-        if (hasSettledAgent(refreshed)) {
-          return { timedOut: false, agents: refreshed };
-        }
-        nextRefreshAt = Date.now() + WAIT_REFRESH_INTERVAL_MS;
+      if (handledInteraction) {
         continue;
       }
+      const hasForeignTarget = targets.some(
+        (target) => !target.runtime.isAgentOwned(target.threadId),
+      );
+      const waitMs = hasForeignTarget
+        ? Math.min(remaining, FOREIGN_POLL_INTERVAL_MS)
+        : remaining;
       const outcome = await waitForRuntimeUpdate(
         runtimes,
         baselines,
-        Math.min(remaining, nextRefreshAt - now),
+        waitMs,
         options.signal,
       );
       if (outcome === "aborted") {
         throw new BrokerError("wait_cancelled", "wait_agent was cancelled");
       }
+      // Loop and re-read; the snapshot at the top is also the deadline re-read
+      // that tells a just-completed agent from a real timeout.
     }
-
-    // App Server can finish a turn without delivering `turn/completed`, for
-    // example when a worker stalls right after persisting its final message.
-    // Re-read durable thread state once before reporting a timeout so a worker
-    // that already finished still surfaces its result.
-    const agents = await Promise.all(
-      targets.map((target) =>
-        target.runtime.refresh(target.threadId, { allowResumeFallback: true }),
-      ),
-    );
-    return { timedOut: !hasSettledAgent(agents), agents };
   }
 
   async listAgents(): Promise<AgentSnapshot[]> {
     const runtimes = await this.#runtimes.all();
     const groups = await Promise.all(
-      runtimes.map(async (runtime) => {
-        const threads = await runtime.listThreads();
-        return Promise.all(threads.map((thread) => runtime.snapshotFor(thread.id)));
-      }),
+      runtimes.map(async (runtime) =>
+        (await runtime.listThreads()).map((thread) => ({ runtime, threadId: thread.id })),
+      ),
     );
-    return groups.flat();
+    const targets = groups.flat();
+    const agents: AgentSnapshot[] = new Array(targets.length);
+    let next = 0;
+    const worker = async () => {
+      while (next < targets.length) {
+        const index = next++;
+        const target = targets[index]!;
+        agents[index] = await target.runtime.snapshotFor(target.threadId);
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(LIST_READ_CONCURRENCY, targets.length) }, worker),
+    );
+    return agents;
   }
 
   async close(): Promise<void> {

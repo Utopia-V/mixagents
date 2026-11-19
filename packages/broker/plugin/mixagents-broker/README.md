@@ -24,6 +24,27 @@ codex plugin add mixagents-broker@mixagents
 
 Start a new Codex task after installation.
 
+### Coexisting with cc-switch
+
+cc-switch regenerates `~/.codex/config.toml` from the selected provider and its
+common config snippet on every Codex provider switch, so plugin and marketplace
+registration must live in that snippet:
+
+```toml
+[marketplaces.mixagents]
+source_type = "git"
+source = "https://github.com/Utopia-V/mixagents.git"
+
+[plugins."mixagents-broker@mixagents"]
+enabled = true
+```
+
+Tick "apply common config" (应用通用配置) for every Codex provider, otherwise a
+switch does not write the snippet. If the registration is gone after a switch,
+run `codex plugin marketplace remove mixagents`,
+`codex plugin marketplace add Utopia-V/mixagents`, then
+`codex plugin add mixagents-broker@mixagents`.
+
 ## Configure
 
 Create `~/.config/mixagents/broker.json` on Linux/macOS or
@@ -59,12 +80,6 @@ Broker normally resolves the installed Codex executable automatically. On
 Windows, npm-managed installs use the matching native `codex.exe`. If it
 cannot be resolved, set the top-level `codexBin` field or
 `MIXAGENTS_BROKER_CODEX_BIN` to the full executable path.
-
-`stallTimeoutMs` is optional and defaults to `180000`. A running agent whose
-active turn produced no App Server events for that long is reported with
-`stalled: true`; Broker never interrupts it by itself. Lower it to surface
-stuck workers sooner, raise it when a route legitimately spends minutes inside
-a single tool call or a single long generation.
 
 The process that starts Codex must provide
 `MIXAGENTS_BROKER_CREDENTIALS_JSON`:
