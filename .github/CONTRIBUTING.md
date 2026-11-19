@@ -1,33 +1,21 @@
-# Contributing
+# 参与贡献
 
-欢迎提交 Issue 或 Pull Request。小修不需要先开 Issue，尚未完成的实现也可以先以 Draft PR
-交流。维护者会协助补标签和整理合并标题，贡献者不需要先学习仓库内部的分类习惯。
+欢迎直接提交 Pull Request，不需要先开 Issue；尚未完成的改动也可以先开 Draft PR 讨论。
 
-## Pull Request
+PR 正文请说明改了什么，以及你实际运行过哪些检查。两个 package 各有一组离线检查，改动哪个 package 就在仓库根目录运行哪一组：
 
-标题直接说明改了什么。正文回答两件事：用户或系统能观察到什么变化，以及你实际做过哪些
-检查。存在关联 Issue 时可以用 `Fixes #N`、`Refs #N` 或完整链接；没有时不必补一个。
+```bash
+npm --prefix packages/broker ci
+npm --prefix packages/broker run check
+npm --prefix packages/broker run pack:check
 
-只声明真正验证过的范围。Linux 上的结果不能写成跨平台完成，mock 结果也不能代替真实
-provider 或 native child。纯文档、重命名等改动如果由 diff 和链接检查已经说明完整，
-不需要为了填模板增加测试。
+npm --prefix packages/pi-dsh-mimic ci
+npm --prefix packages/pi-dsh-mimic run check
+npm --prefix packages/pi-dsh-mimic run pack:check
+```
 
-## 设计取舍
+这些检查不调用真实 provider，Pull Request 提交后 CI 也会自动运行它们。
 
-优先使用 Codex、Pi 和现有组件已经提供的生命周期、权限、消息、工具与 Git 状态。新增
-持久状态、任务队列、日志归档或兼容层时，请说明现有能力为什么不够、谁负责清理，以及
-这个机制在什么条件下可以删除。
+Codex 和 Pi 已经提供的生命周期、权限和 session 机制，请优先直接使用；需要新增持久状态或兼容层时，在 PR 中说明现有机制为什么不够。
 
-临时 workaround 应关联它依赖的上游问题，并保留明确的退役条件。涉及第三方 provider、
-明文任务、文件写入或付费调用时，把用户需要知道的数据、权限和费用边界写进对应组件的
-README 或 SECURITY owner。
-
-## Issue
-
-选择最接近的 [Issue Form](ISSUE_TEMPLATE)，也可以直接提交 Blank Issue。表单用于提示
-常见信息，不要求报告者在提交前完成根因分析；不知道的内容可以留空，维护者会继续追问。
-
-## 安全
-
-不要提交 API key、token、完整请求头、未脱敏配置或无关私有材料。凭据已经暴露时，先在
-provider 侧撤销或轮换，再按 [SECURITY.md](../SECURITY.md) 提供最短的脱敏信息。
+API key、token 和未脱敏的配置不要出现在 Issue、commit 或 PR 中。如果已经泄露，请先到 provider 处撤销或轮换。

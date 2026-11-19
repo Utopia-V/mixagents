@@ -2,49 +2,35 @@
 
 # mixagents
 
-本仓库包含三个可独立安装的 Agent package。
+本仓库主要维护 MixAgents Broker。它是一个 Codex 插件，让 Codex 保持当前使用的模型，同时把子任务交给其他模型供应商上的 worker 完成。仓库里还有一个与 Broker 无关的小扩展 pi-dsh-mimic，供 Pi coding agent 使用。
 
 ## MixAgents Broker
 
-让 Codex 在不切换 controller provider 的情况下，把子任务交给其他模型供应商。npm
-package 为 [`mixagents-broker`](https://www.npmjs.com/package/mixagents-broker)，通过
-MixAgents marketplace 安装：
+Codex 原生的 subagent 沿用 parent 的 provider，无法为某个子任务单独换一个供应商。Broker 由一个 `$broker` Skill 和一个本地 MCP server 组成：你预先配置好 route，每条 route 指定 provider 和 model；派发子任务时，MCP server 按所选 route 启动独立的 Codex App Server worker，任务完成后把结果交回当前对话。
+
+npm 包为 [`mixagents-broker`](https://www.npmjs.com/package/mixagents-broker)，通过本仓库的 marketplace 安装：
 
 ```bash
 codex plugin marketplace add Utopia-V/mixagents
 codex plugin add mixagents-broker@mixagents
 ```
 
-[安装、配置与实现说明](packages/broker/README.zh-CN.md) ·
-[English](packages/broker/README.md) · [安全说明](packages/broker/SECURITY.md)
-
-## Codex DeepSeek Subagent
-
-旧版 DeepSeek 子代理方案，仅适用于 Codex `0.148.x` 及更早的兼容版本。Codex
-`0.149.0` 起改用 MixAgents Broker。
-
-[安装使用](packages/codex-deepseek-subagent/README.md) ·
-[高级说明](packages/codex-deepseek-subagent/docs/advanced.md) ·
-[安全边界](packages/codex-deepseek-subagent/SECURITY.md)
+安装后还需要配置 route 和凭据，步骤见[使用说明](packages/broker/README.zh-CN.md)（[English](packages/broker/README.md)）。worker 会把任务和它读取的文件内容发送给所选 route 的 provider，费用由该 provider 另行计费；数据和本地权限的细节见 [Broker 安全说明](packages/broker/SECURITY.md)。
 
 ## pi-dsh-mimic
 
-只修改 DeepSeek V4 Pro 在 Pi 中的第一次请求：先使用 DSH Minimal 的 persona 和两个
-工具，第一次有效响应后恢复 Pi 原生请求与完整工具目录。在同一个冻结 Project2 任务中，
-默认 Pi 得到 92，四次相同流程得到 96–98；这个结果不代表通用 benchmark。
+pi-dsh-mimic 是 [Pi](https://github.com/earendil-works/pi) 的扩展，可以单独安装：
 
-[安装使用](packages/pi-dsh-mimic/README.zh-CN.md) ·
-[实验与设计](packages/pi-dsh-mimic/docs/advanced.zh-CN.md) ·
-[证据账本](packages/pi-dsh-mimic/docs/project2-evidence.md) ·
-[安全边界](packages/pi-dsh-mimic/SECURITY.md)
+```bash
+pi install npm:pi-dsh-mimic
+```
 
-## 安装前
+它只改变 DeepSeek V4 Pro 在新 session 中的第一次请求：先使用 DSH Minimal 的 persona 和两个工具，第一次有效响应后恢复 Pi 原生请求和完整工具目录。在作者自建的一个长程代码维护任务上，默认 Pi 得到 92 分，这一流程的四次运行得到 96–98 分。
 
-这些 package 可能把任务内容、文件内容和工具结果发送给配置的第三方 provider，相关费用
-独立于 ChatGPT/OpenAI 订阅。安装前阅读 [SECURITY.md](SECURITY.md)。
+[使用说明](packages/pi-dsh-mimic/README.zh-CN.md) · [实验与设计](packages/pi-dsh-mimic/docs/advanced.zh-CN.md) · [安全说明](packages/pi-dsh-mimic/SECURITY.md)
 
-各 package 的源码、测试和文档都在自己的 `packages/` 目录中。根目录 `prompts/` 只保留旧
-raw URL 的转发入口。Issue 与贡献约定见
-[.github/CONTRIBUTING.md](.github/CONTRIBUTING.md)。
+## 其他
 
-本仓库是独立社区项目，与 OpenAI、DeepSeek、Pi 或 OpenCode 均无隶属或官方背书关系。
+仓库最初的 Codex DeepSeek Subagent 基于 Hook 实现，只适用于 Codex 0.148.x 及更早版本，现已移除，旧文件保存在 tag [`codex-deepseek-subagent-final`](https://github.com/Utopia-V/mixagents/tree/codex-deepseek-subagent-final/packages/codex-deepseek-subagent)。
+
+提交 Issue 或 PR 前可以先读[贡献说明](.github/CONTRIBUTING.md)，安全问题的报告方式见 [SECURITY.md](SECURITY.md)。本项目是独立的社区项目，与 OpenAI、DeepSeek、Pi 和 OpenCode 没有隶属关系。
