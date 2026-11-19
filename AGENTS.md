@@ -2,7 +2,7 @@
 
 本仓库有两个互相独立的 package，各自有源码、测试、文档和版本号，彼此没有依赖，改动一个时通常不需要碰另一个。
 
-`packages/broker` 是 MixAgents Broker，一个 Codex 插件，把子任务交给其他 provider 上的 Codex App Server worker。它是仓库的主要产品，有外部用户和贡献者。包内的 `AGENTS.md` 说明了它的设计约束，修改前先读；`docs/` 下是 controller 契约和 backend 策略，`test/` 下是测试。`src/` 由 `npm run build` 编译到 `plugin/mixagents-broker/dist`，npm 发布的就是这个目录。它不进 git：检查和发布流程都会先构建，所以提交只包含 `src/` 的改动。用户通过根目录的 `.agents/plugins/marketplace.json` 安装插件，其中的版本号必须与插件版本一致，`test/release.test.mjs` 会检查这一点。
+`packages/broker` 是 MixAgents Broker，一个 Codex 插件，把子任务交给其他 provider 上的 Codex App Server worker。它是仓库的主要产品，有外部用户和贡献者。包内的 `AGENTS.md` 说明了它的设计取舍和发布方式，修改前先读；`docs/design.md` 是设计说明，`test/` 下是基于 fake App Server 的测试，`test/codex/` 下是对真实 Codex 的检查。`src/` 由 `npm run build` 编译到 `plugin/mixagents-broker/dist`，npm 发布的就是这个目录。它不进 git：检查和发布流程都会先构建，所以提交只包含 `src/` 的改动。用户通过根目录的 `.agents/plugins/marketplace.json` 安装插件，其中的版本号必须与插件版本一致，`test/release.test.mjs` 会检查这一点。
 
 `packages/pi-dsh-mimic` 是 Pi coding agent 的扩展，只改变 DeepSeek V4 Pro 新 session 的第一次请求。它已冻结，只修复缺陷，不增加功能。实验设计和结果在 `docs/advanced.md`，`docs/project2-evidence.md` 是原始证据记录；`package.json` 的 `files` 列出了随包发布的文档，改名或删除这些文件会让 `test/manifest.test.ts` 失败。
 
