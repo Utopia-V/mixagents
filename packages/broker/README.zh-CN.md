@@ -1,24 +1,38 @@
-[English](README.md) · [安全说明](SECURITY.md)
+[English](README.md) · [安全说明](SECURITY.md) · [设计说明（英文）](docs/design.md)
 
 # MixAgents Broker
 
-MixAgents Broker 让 Codex 在不切换当前 controller provider 的情况下，把子任务交给其他
-模型供应商。当前 Codex 的原生 custom child 会继承 parent provider，Broker 使用独立的
-Codex App Server worker 执行跨供应商任务。
+MixAgents Broker 让 Codex 会话把子任务交给其他模型供应商上的 worker，会话本身仍使用
+原来的 provider。你预先配置若干 route，每条 route 指定一个 provider 和一个 model。插件
+中的 `$broker` Skill 负责选择 route，本地 MCP server 则为这条 route 启动一个独立的
+Codex App Server 进程作为 worker，它只与该 route 的 provider 通信。
 
-插件包含一个 `$broker` Skill 和一个本地 STDIO MCP server。Skill 选择预先配置的
-route，MCP server 使用该 route 指定的 provider 和 model 启动 worker。
+## 什么时候适合用 Broker
+
+Codex 的原生 subagent 按设计沿用 parent 的 provider（见
+[subagents 文档](https://learn.chatgpt.com/docs/agent-configuration/subagents)）。想在
+Codex 里同时使用多个供应商的人，通常采用以下三种做法之一：
+
+- **Broker**：主会话仍直接与自己的 provider 通信，中间没有代理；其他供应商上的
+  worker 是 Broker 启动的独立 Codex 进程，通过六个工具汇报状态和结果。它适合留在主力
+  供应商上、把边界清楚的任务交出去的用法。
+- **本地 gateway**：在一个 Codex provider 条目后面接入多个供应商。由于所有模型都在
+  同一个 provider 之后，原生 subagent 可以直接按 model 名称使用其他模型；代价是主会话
+  的请求也要经过 gateway。
+- **整体切换会话的 provider**：手动修改配置，或使用 cc-switch 这类工具。切换后包括
+  subagent 在内的所有请求都发往新的 provider，同一时间只用一个供应商。用这种方式切换时
+  如何保留 Broker，见[与 cc-switch 共存](#与-cc-switch-共存)。
 
 ## 运行要求
 
-- 支持插件与 App Server 的 Codex；
+- Codex `0.149.0` 或更高版本，支持插件与 App Server；
 - Node.js `22.19.0` 或更高版本；
-- 与 Responses API 兼容的供应商 endpoint；
-- 每条 route 对应的 API 凭据。
+- 与 OpenAI Responses API 兼容的供应商 endpoint；
+- 每条 route 对应的 API key。
 
-Broker 面向 Codex `0.149.0` 及以后版本。当前兼容基线为 Codex
-`0.151.0-alpha.7.2` 与 OpenCode Go `deepseek-v4-flash`。其他 provider 和 model 需要
-提供兼容的 Responses endpoint。
+CI 每周用最新的稳定版 Codex 运行一次 Broker，模型由 mock provider 代替，本文写作时
+是 Codex `0.170.0`。唯一一次对真实 provider 的运行使用的是 Codex `0.151` 与
+OpenCode Go。
 
 ## 安装
 
@@ -91,17 +105,23 @@ source」。修好后新建一个 Codex 任务；`$broker` 还没有出现时，
       "description": "用于审阅、提取和编码任务的快速 worker。",
       "provider": "opencode_go",
       "providerName": "OpenCode Go",
-      "model": "deepseek-v4-flash",
+      "model": "deepseek-v4.1-flash",
       "contextWindow": 1000000,
-      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
       "envKey": "OPENCODE_API_KEY",
       "tags": ["fast", "low-cost", "coding"],
       "maxAccess": "workspace-write",
-      "reasoningEffort": "medium"
+      "reasoningEffort": "high"
     }
   }
 }
 ```
+
+这条 route 使用 OpenCode Go 的 Responses endpoint，OpenCode 在
+[Codex 接入说明](https://opencode.ai/docs/console/harnesses/codex)中给出的就是这个地址；
+DeepSeek V4.1 Flash 这类原生使用 Chat Completions 的模型，由 OpenCode 负责转换请求。
+DeepSeek 官方 API 的文档只列出 Chat Completions 和 Anthropic 格式的 endpoint，没有
+Responses endpoint，因此不能直接作为 route。
 
 `workspaceRoots` 是可选的固定目录预授权，并会与 MCP client 提供的 roots 合并。`cwd`
 不在这些目录内时，Broker 会在第一次派发前请求确认。确认后只在当前 MCP 连接内授权
@@ -152,8 +172,8 @@ $broker 使用 opencode-deepseek-flash 审阅这个模块，只返回最重要�
 $broker 把这个提取任务交给已配置的低成本 worker。
 ```
 
-派发前，controller 会说明实际使用的 provider、model 和 backend。只有 assignment 与
-明确附带的 context 会发送给该 provider，parent conversation 不会被自动复制。
+派发前，controller 会说明实际使用的 provider 和 model。只有 assignment 与明确附带的
+context 会发送给该 provider，parent conversation 不会被自动复制。
 
 managed Agent 直接使用传入的 workspace。一次 turn 完成、失败或中断后，仍可在同一个
 Agent thread 中继续发送消息。
@@ -161,15 +181,27 @@ Agent thread 中继续发送消息。
 `cwd` 应传入当前 workspace 的绝对路径。未预授权的 workspace 只有在 host 确认后才会
 使用；拒绝确认不会启动 worker。
 
+## Linux sandbox
+
+在 Linux 上，Codex 用 bubblewrap sandbox 执行 worker 的命令，这需要非特权 user
+namespace。Ubuntu 24.04 通过 AppArmor 限制了这项能力
+（`kernel.apparmor_restrict_unprivileged_userns=1`），sandbox 因此无法启动，命令会以
+`bwrap: loopback: Failed RTM_NEWADDR` 失败。默认 `read-only` 权限的 worker 于是不能
+执行任何命令，转而请求在 sandbox 之外运行，每条命令都会弹出一次确认。Codex `0.166` 和
+`0.170` 上都出现了这个问题，它影响的是 Codex 本身，并非 Broker 独有。
+
+OpenAI 的 [sandboxing 文档](https://learn.chatgpt.com/docs/sandboxing)建议加载
+`bwrap-userns-restrict` AppArmor profile，让 bubblewrap 可以创建 namespace，同时对其他
+程序保留限制；文档把在全系统关闭这项限制列为备选办法。
+[openai/codex#29908](https://github.com/openai/codex/issues/29908) 跟踪这个问题，
+[openai/codex#38715](https://github.com/openai/codex/issues/38715) 则报告了这个
+profile 可能与其他软件为 `bwrap` 安装的 profile 冲突。
+
 ## 技术实现
 
 `$broker` Skill 在派发前调用 `routes`。每条 route 固定 provider 和 model。
 
-当前 Codex 无法让原生 custom child 切换到不同于 parent 的 provider，因此 Broker
-直接选择 `app_server`，不会在每个任务中重复尝试 native。只有某条 route 的缓存资格记录
-已经验证跨供应商创建、工具调用、等待、中断和结果返回时，才会使用 native backend。
-
-App Server backend 按 route 和实际访问级别启动独立 runtime。Codex App Server 负责
+Broker 按 route 和访问级别分别启动独立的 Codex App Server runtime。App Server 负责
 模型循环、工具、thread history、turn result 与恢复；Broker 把这些能力映射为六个操作：
 
 - `routes`
@@ -189,14 +221,16 @@ controller 看到的状态只有 `starting`、`running`、`completed`、`failed`
 对这类 agent 调用 `send` 或 `interrupt_agent` 会返回 `agent_owned_elsewhere`。
 那个 Broker 退出以后，任何对话都可以继续这个 agent。
 
-详细契约见 [controller-contract.md](docs/controller-contract.md) 和
-[backend-and-lifecycle-policy.md](docs/backend-and-lifecycle-policy.md)。
+worker 为什么是独立进程，以及工具、状态、确认请求和恢复的细节，见
+[docs/design.md](docs/design.md)（英文）。
 
 ## 权限与数据
 
 - 每次派发默认使用 `read-only`；需要修改文件时才请求 `workspace-write`。
 - managed worker 直接修改传入的 workspace；Broker 不创建 worktree，也不合并改动。
-- worker 读取的文件内容和工具结果可能发送给所选 provider。
+- worker 读取的文件内容和工具结果可能发送给所选 provider，由该 provider 计费。
+- worker 请求执行 sandbox 不允许的命令或文件修改时，你会看到确认提示；确认后，这项请求
+  会在 sandbox 之外执行。
 - Codex sandbox 管理权限，但不保证 `cwd` 之外的所有文件都不可读。
 - `interrupt_agent` 只停止本地 turn，上游计算和计费可能继续。
 
@@ -225,7 +259,8 @@ npm run pack:check
 ```
 
 发布到 npm 的 package 位于 `plugin/mixagents-broker`，其中包含 plugin manifest、
-`$broker` Skill、STDIO MCP 配置和预编译 JavaScript runtime。生产运行时没有第三方
+`$broker` Skill、STDIO MCP 配置，以及 `npm run build` 从 `src/` 编译到 `dist/` 的
+JavaScript runtime。`dist/` 不进 git，检查和发布流程都会先构建。生产运行时没有第三方
 Node.js 依赖。
 
 `npm run check` 使用模拟的 App Server。`npm run test:codex` 则让 Broker 的 MCP
