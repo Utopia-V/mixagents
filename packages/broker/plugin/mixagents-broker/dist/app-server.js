@@ -216,6 +216,26 @@ function statusFromTurn(turn) {
             return "starting";
     }
 }
+function isValidTimestamp(value) {
+    return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+// App Server cannot see the live state of a thread loaded in another process.
+// It reports that thread as notLoaded and its unfinished turn as interrupted
+// with no completion time, which is also how a turn whose owner died looks.
+// Only the thread's writer lock tells the two apart.
+function hasUnsettledTurn(thread) {
+    if (!isRecord(thread.status) || thread.status.type !== "notLoaded") {
+        return false;
+    }
+    const latest = Array.isArray(thread.turns) ? thread.turns.at(-1) : undefined;
+    return latest?.status === "interrupted" && !isValidTimestamp(latest.completedAt);
+}
+function isActiveWriterError(error) {
+    return /already has an active writer/i.test(errorMessage(error));
+}
+function agentOwnedElsewhere(threadId) {
+    return new BrokerError("agent_owned_elsewhere", `Thread ${threadId} is owned by another Broker session; no takeover attempted`, { threadId });
+}
 function threadFromResult(result) {
     if (!isRecord(result) || !isRecord(result.thread) || typeof result.thread.id !== "string") {
         throw new BrokerError("app_server_protocol", "App Server returned no thread identity");
@@ -420,6 +440,34 @@ export class AppServerRuntime extends EventEmitter {
         this.#updated();
         return this.snapshot(agent);
     }
+    #applyLatestTurn(agent, latest) {
+        agent.status = statusFromTurn(latest);
+        if (latest.status === "inProgress") {
+            agent.activeTurnId = latest.id;
+        }
+        const output = extractTurnOutput(latest);
+        const turnError = extractTurnError(latest);
+        if (output !== undefined) {
+            agent.output = output;
+        }
+        if (turnError !== undefined) {
+            agent.error = turnError;
+        }
+    }
+    #agentFromThread(threadId, thread) {
+        const latest = Array.isArray(thread.turns) ? thread.turns.at(-1) : undefined;
+        const agent = {
+            threadId,
+            cwd: typeof thread.cwd === "string" ? thread.cwd : "",
+            status: "starting",
+            ignoredTurnIds: new Set(),
+            interactions: [],
+        };
+        if (latest) {
+            this.#applyLatestTurn(agent, latest);
+        }
+        return agent;
+    }
     async recover(threadId) {
         const existing = this.#agents.get(threadId);
         if (existing) {
@@ -436,30 +484,14 @@ export class AppServerRuntime extends EventEmitter {
             if (thread.modelProvider && thread.modelProvider !== this.route.provider) {
                 throw new BrokerError("route_mismatch", `Stored thread uses ${thread.modelProvider}, expected ${this.route.provider}`);
             }
-            const turns = Array.isArray(thread.turns) ? thread.turns : [];
-            const latest = turns.at(-1);
-            const agent = {
-                threadId,
-                cwd: typeof thread.cwd === "string" ? thread.cwd : "",
-                status: statusFromTurn(latest),
-                ignoredTurnIds: new Set(),
-                interactions: [],
-            };
-            if (latest?.status === "inProgress") {
-                agent.activeTurnId = latest.id;
-            }
-            const output = extractTurnOutput(latest);
-            const turnError = extractTurnError(latest);
-            if (output !== undefined) {
-                agent.output = output;
-            }
-            if (turnError !== undefined) {
-                agent.error = turnError;
-            }
+            const agent = this.#agentFromThread(threadId, thread);
             this.#agents.set(threadId, agent);
             return agent;
         }
         catch (error) {
+            if (isActiveWriterError(error)) {
+                throw agentOwnedElsewhere(threadId);
+            }
             if (error instanceof JsonRpcRemoteError &&
                 /not found|unknown thread/i.test(error.message)) {
                 const missing = {
@@ -545,8 +577,65 @@ export class AppServerRuntime extends EventEmitter {
         }
         return snapshot;
     }
-    async snapshotFor(threadId) {
-        return this.snapshot(await this.recover(threadId));
+    /**
+     * Observes a thread without taking writer control from a live owner. A
+     * thread this process does not own is read, not resumed. Only an unsettled
+     * turn is probed with thread/resume: a live owner refuses it, and otherwise
+     * the owner is gone and this process takes over the thread. `liveOwners`
+     * keeps the threads found owned elsewhere during one tool call, so a polling
+     * wait probes each of them once.
+     */
+    async snapshotFor(threadId, liveOwners = new Set()) {
+        const owned = this.#agents.get(threadId);
+        if (owned) {
+            return this.snapshot(owned);
+        }
+        await this.start();
+        let thread;
+        try {
+            const response = await this.#request("thread/read", {
+                threadId,
+                includeTurns: true,
+            });
+            thread = threadFromResult(response);
+        }
+        catch (error) {
+            if (error instanceof JsonRpcRemoteError &&
+                /not found|unknown thread/i.test(error.message)) {
+                return this.snapshot({
+                    threadId,
+                    cwd: "",
+                    status: "not_found",
+                    ignoredTurnIds: new Set(),
+                    interactions: [],
+                });
+            }
+            throw error;
+        }
+        if (thread.modelProvider !== this.route.provider) {
+            throw new BrokerError("route_mismatch", `Stored thread uses ${thread.modelProvider ?? "unknown"}, expected ${this.route.provider}`);
+        }
+        const agent = this.#agentFromThread(threadId, thread);
+        if (!hasUnsettledTurn(thread)) {
+            return this.snapshot(agent);
+        }
+        const key = encodeAgentId(this.runtimeId, threadId);
+        if (!liveOwners.has(key)) {
+            try {
+                return this.snapshot(await this.recover(threadId));
+            }
+            catch (error) {
+                if (!(error instanceof BrokerError) || error.code !== "agent_owned_elsewhere") {
+                    throw error;
+                }
+                liveOwners.add(key);
+            }
+        }
+        agent.status = "running";
+        return this.snapshot(agent);
+    }
+    isAgentOwned(threadId) {
+        return this.#agents.has(threadId);
     }
     takeInteraction(threadId) {
         return this.#agents.get(threadId)?.interactions.shift();
@@ -641,6 +730,7 @@ export class RuntimeManager {
     #process;
     #environment;
     #runtimes = new Map();
+    #loading = new Map();
     constructor(dataDir, codexBin, environment = process.env, processOverride) {
         this.#dataDir = dataDir;
         this.#process = processOverride ?? resolveCodexProcess(codexBin, environment);
@@ -666,12 +756,7 @@ export class RuntimeManager {
     }
     async forAgent(agentId) {
         const { runtimeId, threadId } = parseAgentId(agentId);
-        let runtime = this.#runtimes.get(runtimeId);
-        if (!runtime) {
-            runtime = await this.#loadRuntime(runtimeId);
-            this.#runtimes.set(runtimeId, runtime);
-        }
-        return { runtime, threadId };
+        return { runtime: await this.#runtimeById(runtimeId), threadId };
     }
     async all() {
         const root = path.join(this.#dataDir, "runtimes");
@@ -687,13 +772,39 @@ export class RuntimeManager {
                 continue;
             }
             try {
-                this.#runtimes.set(runtimeId, await this.#loadRuntime(runtimeId));
+                await this.#runtimeById(runtimeId);
             }
             catch {
                 // Ignore incomplete or foreign directories rather than granting them authority.
             }
         }
         return [...this.#runtimes.values()];
+    }
+    // Concurrent lookups share one load, so one runtime id never gets two
+    // runtime objects racing on the same directory and App Server process.
+    async #runtimeById(runtimeId) {
+        const existing = this.#runtimes.get(runtimeId);
+        if (existing) {
+            return existing;
+        }
+        const loading = this.#loading.get(runtimeId);
+        if (loading) {
+            return loading;
+        }
+        const pending = this.#loadRuntime(runtimeId)
+            .then((runtime) => {
+            const current = this.#runtimes.get(runtimeId);
+            if (current) {
+                return current;
+            }
+            this.#runtimes.set(runtimeId, runtime);
+            return runtime;
+        })
+            .finally(() => {
+            this.#loading.delete(runtimeId);
+        });
+        this.#loading.set(runtimeId, pending);
+        return pending;
     }
     async #loadRuntime(runtimeId) {
         const directory = path.join(this.#dataDir, "runtimes", runtimeId);

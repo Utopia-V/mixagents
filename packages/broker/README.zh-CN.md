@@ -183,6 +183,12 @@ controller 看到的状态只有 `starting`、`running`、`completed`、`failed`
 `interrupted` 和 `not_found`。如果无法保持配置的 provider、model、workspace 或
 权限边界，Broker 会直接失败，不会替换 route。
 
+多个 Codex 对话可以共用同一个 Broker 数据目录，彼此都能看到对方的 agent。
+`list_agents` 和 `wait_agent` 观察其他对话拥有的 agent 时不会接管它；由于收不到
+那个对话的通知，`wait_agent` 会轮询它的状态。只要那个对话的 Broker 仍在运行，
+对这类 agent 调用 `send` 或 `interrupt_agent` 会返回 `agent_owned_elsewhere`。
+那个 Broker 退出以后，任何对话都可以继续这个 agent。
+
 详细契约见 [controller-contract.md](docs/controller-contract.md) 和
 [backend-and-lifecycle-policy.md](docs/backend-and-lifecycle-policy.md)。
 

@@ -478,3 +478,244 @@ test("Windows command shims use an explicit cmd invocation", () => {
     },
   );
 });
+
+// Two Broker sessions over one data directory share each runtime's App Server
+// home, as two Codex chats do. The fake App Server keeps writer locks there.
+
+function isAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
+}
+
+async function writerPid(app, agentId) {
+  const { runtimeId, threadId } = parseAgentId(agentId);
+  const lock = path.join(app.dataDir, "runtimes", runtimeId, "fake-locks", `${threadId}.json`);
+  return JSON.parse(await readFile(lock, "utf8")).pid;
+}
+
+async function untilExited(pid) {
+  const deadline = Date.now() + 5_000;
+  while (isAlive(pid)) {
+    assert.ok(Date.now() < deadline, `process ${pid} did not exit`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
+async function crashWriter(app, agentId) {
+  const pid = await writerPid(app, agentId);
+  process.kill(pid, "SIGKILL");
+  await untilExited(pid);
+}
+
+async function resumeRefusals(app, agentId) {
+  const { runtimeId } = parseAgentId(agentId);
+  try {
+    const log = await readFile(
+      path.join(app.dataDir, "runtimes", runtimeId, "fake-resume-refusals.log"),
+      "utf8",
+    );
+    return log.split("\n").filter(Boolean).length;
+  } catch {
+    return 0;
+  }
+}
+
+test("another session observes a running worker without taking it over", async () => {
+  const app = await harness();
+  const other = await Broker.create(app.options);
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "slow task",
+      cwd: app.workspace,
+    });
+    const listed = await other.listAgents();
+    assert.equal(listed.find((agent) => agent.agentId === spawned.agentId)?.status, "running");
+    const waited = await other.waitAgents([spawned.agentId], 1_200);
+    assert.equal(waited.timedOut, true);
+    assert.equal(waited.agents[0].status, "running");
+    // One writer-lock probe for the list and one for the whole polling wait.
+    assert.equal(await resumeRefusals(app, spawned.agentId), 2);
+
+    const interrupted = await app.broker.interruptAgent(spawned.agentId);
+    assert.equal(interrupted.agent.status, "interrupted");
+    const observed = await other.waitAgents([spawned.agentId], 2_000);
+    assert.equal(observed.timedOut, false);
+    assert.equal(observed.agents[0].status, "interrupted");
+  } finally {
+    await other.close();
+    await app.close();
+  }
+});
+
+test("a wait from another session returns the owner's result and follow-up", async () => {
+  const app = await harness();
+  const other = await Broker.create(app.options);
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "delayed first",
+      cwd: app.workspace,
+    });
+    const first = await other.waitAgents([spawned.agentId], 5_000);
+    assert.equal(first.timedOut, false);
+    assert.equal(first.agents[0].status, "completed");
+    assert.equal(first.agents[0].output, "result:delayed first");
+
+    await app.broker.send(spawned.agentId, "delayed second");
+    const second = await other.waitAgents([spawned.agentId], 5_000);
+    assert.equal(second.agents[0].status, "completed");
+    assert.equal(second.agents[0].output, "result:delayed second");
+  } finally {
+    await other.close();
+    await app.close();
+  }
+});
+
+test("send and interrupt from another session are refused until the owner exits", async () => {
+  const app = await harness();
+  const other = await Broker.create(app.options);
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "slow task",
+      cwd: app.workspace,
+    });
+    await assert.rejects(other.send(spawned.agentId, "take it"), {
+      code: "agent_owned_elsewhere",
+    });
+    await assert.rejects(other.interruptAgent(spawned.agentId), {
+      code: "agent_owned_elsewhere",
+    });
+
+    await app.broker.send(spawned.agentId, "owner steer");
+    const owned = await app.broker.waitAgents([spawned.agentId], 2_000);
+    assert.equal(owned.agents[0].output, "steered:owner steer");
+
+    const owner = await writerPid(app, spawned.agentId);
+    await app.broker.close();
+    await untilExited(owner);
+    assert.equal((await other.send(spawned.agentId, "after takeover")).status, "running");
+    const taken = await other.waitAgents([spawned.agentId], 2_000);
+    assert.equal(taken.agents[0].output, "result:after takeover");
+  } finally {
+    await other.close();
+    await app.close();
+  }
+});
+
+test("another session reads a crashed owner's turn as interrupted and can continue it", async () => {
+  const app = await harness();
+  const other = await Broker.create(app.options);
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "slow task",
+      cwd: app.workspace,
+    });
+    await crashWriter(app, spawned.agentId);
+    const waited = await other.waitAgents([spawned.agentId], 2_000);
+    assert.equal(waited.timedOut, false);
+    assert.equal(waited.agents[0].status, "interrupted");
+
+    await other.send(spawned.agentId, "continue");
+    const continued = await other.waitAgents([spawned.agentId], 2_000);
+    assert.equal(continued.agents[0].output, "result:continue");
+  } finally {
+    await other.close();
+    await app.close();
+  }
+});
+
+test("a turn reads as interrupted after this session's App Server crashes", async () => {
+  const app = await harness();
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "slow task",
+      cwd: app.workspace,
+    });
+    await crashWriter(app, spawned.agentId);
+    const waited = await app.broker.waitAgents([spawned.agentId], 2_000);
+    assert.equal(waited.timedOut, false);
+    assert.equal(waited.agents[0].status, "interrupted");
+
+    await app.broker.send(spawned.agentId, "again");
+    const resumed = await app.broker.waitAgents([spawned.agentId], 2_000);
+    assert.equal(resumed.agents[0].output, "result:again");
+  } finally {
+    await app.close();
+  }
+});
+
+test("listing finished workers leaves them free for any session to continue", async () => {
+  const app = await harness();
+  const sessions = [];
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "first task",
+      cwd: app.workspace,
+    });
+    await app.broker.waitAgents([spawned.agentId], 2_000);
+    const owner = await writerPid(app, spawned.agentId);
+    await app.broker.close();
+    await untilExited(owner);
+
+    const observer = await Broker.create(app.options);
+    sessions.push(observer);
+    const listed = await observer.listAgents();
+    assert.equal(listed[0].status, "completed");
+    assert.equal(listed[0].output, "result:first task");
+
+    const third = await Broker.create(app.options);
+    sessions.push(third);
+    await third.send(spawned.agentId, "from third");
+    const continued = await third.waitAgents([spawned.agentId], 2_000);
+    assert.equal(continued.agents[0].output, "result:from third");
+  } finally {
+    for (const session of sessions) await session.close();
+    await app.close();
+  }
+});
+
+test("concurrent lookups in a fresh session share one runtime", async () => {
+  const app = await harness();
+  const other = await Broker.create(app.options);
+  try {
+    const first = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "first task",
+      cwd: app.workspace,
+    });
+    const second = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "second task",
+      cwd: app.workspace,
+    });
+    await app.broker.waitAgents([first.agentId], 2_000);
+    await app.broker.waitAgents([second.agentId], 2_000);
+    const owner = await writerPid(app, first.agentId);
+    await app.broker.close();
+    await untilExited(owner);
+
+    const waited = await other.waitAgents([first.agentId, second.agentId], 2_000);
+    assert.deepEqual(
+      waited.agents.map((agent) => agent.status),
+      ["completed", "completed"],
+    );
+    await other.send(first.agentId, "first again");
+    await other.send(second.agentId, "second again");
+    assert.equal(
+      await writerPid(app, first.agentId),
+      await writerPid(app, second.agentId),
+    );
+  } finally {
+    await other.close();
+    await app.close();
+  }
+});

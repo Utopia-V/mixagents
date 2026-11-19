@@ -76,6 +76,7 @@ export interface ThreadTurn {
     status: "completed" | "interrupted" | "failed" | "inProgress";
     items?: unknown[];
     error?: unknown;
+    completedAt?: unknown;
 }
 export interface ThreadRecord {
     id: string;

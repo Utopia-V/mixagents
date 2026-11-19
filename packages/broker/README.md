@@ -207,6 +207,13 @@ The controller sees `starting`, `running`, `completed`, `failed`,
 configured provider, model, workspace, or access boundary; it does not
 substitute another route.
 
+Several Codex chats can share one Broker data directory, and each sees the
+others' agents. `list_agents` and `wait_agent` observe an agent owned by
+another chat without taking it over; `wait_agent` polls it, since that chat's
+notifications do not reach this one. `send` and `interrupt_agent` on such an
+agent fail with `agent_owned_elsewhere` while the other chat's Broker is
+running. Once it has exited, the agent can be continued from any chat.
+
 The detailed contracts are in
 [controller-contract.md](docs/controller-contract.md) and
 [backend-and-lifecycle-policy.md](docs/backend-and-lifecycle-policy.md).

@@ -17,6 +17,13 @@ function clampTimeout(value) {
     }
     return Math.min(value, 120_000);
 }
+// Another process's App Server sends this one no notifications, so a wait on
+// a thread owned elsewhere re-reads it on this interval.
+const FOREIGN_POLL_INTERVAL_MS = 500;
+const LIST_READ_CONCURRENCY = 8;
+function isTerminalStatus(status) {
+    return status !== "running" && status !== "starting";
+}
 async function waitForRuntimeUpdate(runtimes, baselines, timeoutMs, signal) {
     if (timeoutMs <= 0) {
         return "timeout";
@@ -109,6 +116,7 @@ export class Broker {
         const timeoutMs = clampTimeout(timeoutInput);
         const targets = await Promise.all(agentIds.map(async (agentId) => this.#runtimes.forAgent(agentId)));
         const deadline = Date.now() + timeoutMs;
+        const liveOwners = new Set();
         while (true) {
             let handledInteraction = false;
             for (const target of targets) {
@@ -121,8 +129,8 @@ export class Broker {
             }
             const runtimes = [...new Set(targets.map((target) => target.runtime))];
             const baselines = new Map(runtimes.map((runtime) => [runtime, runtime.revision]));
-            const agents = await Promise.all(targets.map((target) => target.runtime.snapshotFor(target.threadId)));
-            if (agents.some((agent) => agent.status !== "running" && agent.status !== "starting")) {
+            const agents = await Promise.all(targets.map((target) => target.runtime.snapshotFor(target.threadId, liveOwners)));
+            if (agents.some((agent) => isTerminalStatus(agent.status))) {
                 return { timedOut: false, agents };
             }
             if (options.signal?.aborted) {
@@ -135,23 +143,33 @@ export class Broker {
             if (handledInteraction) {
                 continue;
             }
-            const outcome = await waitForRuntimeUpdate(runtimes, baselines, remaining, options.signal);
+            const hasForeignTarget = targets.some((target) => !target.runtime.isAgentOwned(target.threadId));
+            const waitMs = hasForeignTarget
+                ? Math.min(remaining, FOREIGN_POLL_INTERVAL_MS)
+                : remaining;
+            const outcome = await waitForRuntimeUpdate(runtimes, baselines, waitMs, options.signal);
             if (outcome === "aborted") {
                 throw new BrokerError("wait_cancelled", "wait_agent was cancelled");
             }
-            if (outcome === "timeout") {
-                const current = await Promise.all(targets.map((target) => target.runtime.snapshotFor(target.threadId)));
-                return { timedOut: true, agents: current };
-            }
+            // Loop and re-read; the snapshot at the top is also the deadline re-read
+            // that tells a just-completed agent from a real timeout.
         }
     }
     async listAgents() {
         const runtimes = await this.#runtimes.all();
-        const groups = await Promise.all(runtimes.map(async (runtime) => {
-            const threads = await runtime.listThreads();
-            return Promise.all(threads.map((thread) => runtime.snapshotFor(thread.id)));
-        }));
-        return groups.flat();
+        const groups = await Promise.all(runtimes.map(async (runtime) => (await runtime.listThreads()).map((thread) => ({ runtime, threadId: thread.id }))));
+        const targets = groups.flat();
+        const agents = new Array(targets.length);
+        let next = 0;
+        const worker = async () => {
+            while (next < targets.length) {
+                const index = next++;
+                const target = targets[index];
+                agents[index] = await target.runtime.snapshotFor(target.threadId);
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(LIST_READ_CONCURRENCY, targets.length) }, worker));
+        return agents;
     }
     async close() {
         await this.#runtimes.close();

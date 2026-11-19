@@ -71,6 +71,12 @@ substates, result references, diff manifests, or release handles. App Server
 thread and turn identifiers may appear in diagnostics, but they are not the
 controller's normal working vocabulary.
 
+An agent id identifies a thread, not a Broker process. Another chat's Broker
+may own the agent. `list_agents` and `wait_agent` observe it without taking it
+over. `send` and `interrupt_agent` fail with `agent_owned_elsewhere` while that
+Broker is running; the error means the agent belongs to another chat, not that
+Broker or the route is unavailable.
+
 ## Tool behavior
 
 ### `routes`
@@ -136,6 +142,9 @@ capability to present that request. The response is relayed directly to App
 Server and is not retained as a separate Broker task. If the host cannot
 present the request, Broker declines it explicitly; credentials are never
 collected through elicitation.
+
+A target owned by another chat is polled, because that chat's notifications
+do not reach this Broker.
 
 ### `interrupt_agent`
 
