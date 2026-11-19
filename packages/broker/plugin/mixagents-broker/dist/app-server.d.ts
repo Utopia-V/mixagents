@@ -40,7 +40,15 @@ export declare class AppServerRuntime extends EventEmitter {
         agent: AgentSnapshot;
     }>;
     snapshot(agent: InternalAgent): AgentSnapshot;
-    snapshotFor(threadId: string): Promise<AgentSnapshot>;
+    /**
+     * Observes a thread without taking writer control from a live owner. A
+     * thread this process does not own is read, not resumed. Only an unsettled
+     * turn is probed with thread/resume: a live owner refuses it, and otherwise
+     * the owner is gone and this process takes over the thread. `liveOwners`
+     * keeps the threads found owned elsewhere during one tool call, so a polling
+     * wait probes each of them once.
+     */
+    snapshotFor(threadId: string, liveOwners?: Set<string>): Promise<AgentSnapshot>;
     isAgentOwned(threadId: string): boolean;
     takeInteraction(threadId: string): PendingInteraction | undefined;
     listThreads(): Promise<ThreadRecord[]>;

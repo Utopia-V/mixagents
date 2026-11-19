@@ -301,65 +301,30 @@ function statusFromTurn(turn: ThreadTurn | undefined): AgentSnapshot["status"] {
   }
 }
 
-function statusFromThread(thread: ThreadRecord): AgentSnapshot["status"] {
-  if (isRecord(thread.status)) {
-    switch (thread.status.type) {
-      case "idle":
-        // Metadata alone is not evidence that a turn completed. A completed
-        // status requires a latest turn with status completed.
-        return "starting";
-      case "active":
-        return "running";
-      case "systemError":
-        return "failed";
-      default:
-        return "starting";
-    }
-  }
-  return "starting";
-}
-
 function isValidTimestamp(value: unknown): boolean {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
-function normalizeForeignIncompleteInterrupt(
-  agent: InternalAgent,
-  thread: ThreadRecord,
-): void {
-  if (agent.status !== "interrupted") {
-    return;
-  }
+// App Server cannot see the live state of a thread loaded in another process.
+// It reports that thread as notLoaded and its unfinished turn as interrupted
+// with no completion time, which is also how a turn whose owner died looks.
+// Only the thread's writer lock tells the two apart.
+function hasUnsettledTurn(thread: ThreadRecord): boolean {
   if (!isRecord(thread.status) || thread.status.type !== "notLoaded") {
-    return;
+    return false;
   }
-  const turns = Array.isArray(thread.turns) ? thread.turns : [];
-  const latest = turns.at(-1);
-  if (
-    !latest ||
-    latest.status !== "interrupted" ||
-    isValidTimestamp(latest.completedAt)
-  ) {
-    return;
-  }
-  // An unloaded durable turn can surface as interrupted while the owner is
-  // still running. Without a completion timestamp this is not terminal
-  // evidence, so stay conservative rather than returning stale output/error.
-  agent.status = "starting";
-  delete agent.output;
-  delete agent.error;
-  delete agent.activeTurnId;
+  const latest = Array.isArray(thread.turns) ? thread.turns.at(-1) : undefined;
+  return latest?.status === "interrupted" && !isValidTimestamp(latest.completedAt);
 }
 
 function isActiveWriterError(error: unknown): boolean {
-  const message = errorMessage(error);
-  return /already has an active writer/i.test(message) && !/no active writer/i.test(message);
+  return /already has an active writer/i.test(errorMessage(error));
 }
 
 function agentOwnedElsewhere(threadId: string): BrokerError {
   return new BrokerError(
     "agent_owned_elsewhere",
-    `Thread ${threadId} is owned by another App Server; no takeover attempted`,
+    `Thread ${threadId} is owned by another Broker session; no takeover attempted`,
     { threadId },
   );
 }
@@ -632,12 +597,11 @@ export class AppServerRuntime extends EventEmitter {
   }
 
   #agentFromThread(threadId: string, thread: ThreadRecord): InternalAgent {
-    const turns = Array.isArray(thread.turns) ? thread.turns : [];
-    const latest = turns.at(-1);
+    const latest = Array.isArray(thread.turns) ? thread.turns.at(-1) : undefined;
     const agent: InternalAgent = {
       threadId,
       cwd: typeof thread.cwd === "string" ? thread.cwd : "",
-      status: latest ? "starting" : statusFromThread(thread),
+      status: "starting",
       ignoredTurnIds: new Set(),
       interactions: [],
     };
@@ -721,9 +685,6 @@ export class AppServerRuntime extends EventEmitter {
       }
       agent.status = "running";
     } catch (error) {
-      if (isActiveWriterError(error)) {
-        throw agentOwnedElsewhere(threadId);
-      }
       agent.status = "failed";
       agent.error = errorMessage(error);
     }
@@ -736,17 +697,10 @@ export class AppServerRuntime extends EventEmitter {
     const previousStatus = agent.status;
     if (agent.status === "running" && agent.activeTurnId) {
       const interruptedTurnId = agent.activeTurnId;
-      try {
-        await this.#request("turn/interrupt", {
-          threadId,
-          turnId: interruptedTurnId,
-        });
-      } catch (error) {
-        if (isActiveWriterError(error)) {
-          throw agentOwnedElsewhere(threadId);
-        }
-        throw error;
-      }
+      await this.#request("turn/interrupt", {
+        threadId,
+        turnId: interruptedTurnId,
+      });
       agent.ignoredTurnIds.add(interruptedTurnId);
       delete agent.activeTurnId;
       agent.status = "interrupted";
@@ -775,7 +729,18 @@ export class AppServerRuntime extends EventEmitter {
     return snapshot;
   }
 
-  async snapshotFor(threadId: string): Promise<AgentSnapshot> {
+  /**
+   * Observes a thread without taking writer control from a live owner. A
+   * thread this process does not own is read, not resumed. Only an unsettled
+   * turn is probed with thread/resume: a live owner refuses it, and otherwise
+   * the owner is gone and this process takes over the thread. `liveOwners`
+   * keeps the threads found owned elsewhere during one tool call, so a polling
+   * wait probes each of them once.
+   */
+  async snapshotFor(
+    threadId: string,
+    liveOwners = new Set<string>(),
+  ): Promise<AgentSnapshot> {
     const owned = this.#agents.get(threadId);
     if (owned) {
       return this.snapshot(owned);
@@ -789,9 +754,6 @@ export class AppServerRuntime extends EventEmitter {
       });
       thread = threadFromResult(response);
     } catch (error) {
-      if (isActiveWriterError(error)) {
-        throw agentOwnedElsewhere(threadId);
-      }
       if (
         error instanceof JsonRpcRemoteError &&
         /not found|unknown thread/i.test(error.message)
@@ -813,7 +775,21 @@ export class AppServerRuntime extends EventEmitter {
       );
     }
     const agent = this.#agentFromThread(threadId, thread);
-    normalizeForeignIncompleteInterrupt(agent, thread);
+    if (!hasUnsettledTurn(thread)) {
+      return this.snapshot(agent);
+    }
+    const key = encodeAgentId(this.runtimeId, threadId);
+    if (!liveOwners.has(key)) {
+      try {
+        return this.snapshot(await this.recover(threadId));
+      } catch (error) {
+        if (!(error instanceof BrokerError) || error.code !== "agent_owned_elsewhere") {
+          throw error;
+        }
+        liveOwners.add(key);
+      }
+    }
+    agent.status = "running";
     return this.snapshot(agent);
   }
 
@@ -943,10 +919,6 @@ export class RuntimeManager {
     if (existing) {
       return existing;
     }
-    const loading = this.#loading.get(runtimeId);
-    if (loading) {
-      return loading;
-    }
     const directory = path.join(this.#dataDir, "runtimes", runtimeId);
     const metadata: RuntimeMetadata = {
       version: 1,
@@ -989,6 +961,8 @@ export class RuntimeManager {
     return [...this.#runtimes.values()];
   }
 
+  // Concurrent lookups share one load, so one runtime id never gets two
+  // runtime objects racing on the same directory and App Server process.
   async #runtimeById(runtimeId: string): Promise<AppServerRuntime> {
     const existing = this.#runtimes.get(runtimeId);
     if (existing) {
