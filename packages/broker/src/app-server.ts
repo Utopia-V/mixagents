@@ -37,6 +37,9 @@ interface InternalAgent {
   error?: string;
   ignoredTurnIds: Set<string>;
   interactions: PendingInteraction[];
+  // When App Server last sent this process anything about the thread. Only
+  // threads owned by this process receive notifications, so only they set it.
+  lastHeardAt?: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -558,6 +561,7 @@ export class AppServerRuntime extends EventEmitter {
       status: "starting",
       ignoredTurnIds: new Set(),
       interactions: [],
+      lastHeardAt: Date.now(),
     };
     this.#agents.set(thread.id, agent);
     this.#updated();
@@ -568,6 +572,7 @@ export class AppServerRuntime extends EventEmitter {
         input: [{ type: "text", text: task }],
       });
       const turn = turnFromResult(turnResponse);
+      agent.lastHeardAt = Date.now();
       agent.activeTurnId = turn.id;
       agent.status = statusFromTurn(turn);
       if (agent.status === "starting") {
@@ -631,6 +636,7 @@ export class AppServerRuntime extends EventEmitter {
         );
       }
       const agent = this.#agentFromThread(threadId, thread);
+      agent.lastHeardAt = Date.now();
       this.#agents.set(threadId, agent);
       return agent;
     } catch (error) {
@@ -683,6 +689,7 @@ export class AppServerRuntime extends EventEmitter {
         const turn = turnFromResult(response);
         agent.activeTurnId = turn.id;
       }
+      agent.lastHeardAt = Date.now();
       agent.status = "running";
     } catch (error) {
       agent.status = "failed";
@@ -725,6 +732,12 @@ export class AppServerRuntime extends EventEmitter {
     }
     if (agent.error !== undefined && agent.status === "failed") {
       snapshot.error = agent.error;
+    }
+    if (
+      agent.lastHeardAt !== undefined &&
+      (agent.status === "starting" || agent.status === "running")
+    ) {
+      snapshot.idleMs = Math.max(0, Date.now() - agent.lastHeardAt);
     }
     return snapshot;
   }
@@ -840,6 +853,7 @@ export class AppServerRuntime extends EventEmitter {
         `App Server requested ${method} for an unknown Broker thread`,
       );
     }
+    agent.lastHeardAt = Date.now();
     return new Promise((resolve, reject) => {
       agent.interactions.push({
         method,
@@ -860,6 +874,7 @@ export class AppServerRuntime extends EventEmitter {
     if (!agent) {
       return;
     }
+    agent.lastHeardAt = Date.now();
     if (method === "turn/started" && isRecord(params.turn) && typeof params.turn.id === "string") {
       agent.activeTurnId = params.turn.id;
       agent.status = "running";

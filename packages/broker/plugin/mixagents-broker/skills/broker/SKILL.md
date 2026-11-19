@@ -38,6 +38,10 @@ or execution is ambiguous.
   turn on an inactive one.
 - Use `mcp__broker__wait_agent` for one to eight managed agents. A completed
   result is the worker's final text, not a second workflow artifact.
+- A running snapshot's `idleMs` is how long the worker has been silent. A long
+  tool call or generation is also silent, so judge it against what the task
+  could explain; when nothing could, interrupt the agent and send a follow-up
+  asking it to return what it has so far.
 - Use `mcp__broker__interrupt_agent` only to stop the active turn. The thread
   remains reusable, and remote provider computation may continue.
 - Use `mcp__broker__list_agents` after context loss or restart.

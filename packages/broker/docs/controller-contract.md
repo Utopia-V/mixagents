@@ -59,10 +59,14 @@ model
 backend              native | app_server
 status               starting | running | interrupted | completed | failed |
                      not_found
+idleMs               while starting or running: milliseconds since App Server
+                     last sent this Broker anything about the thread
 ```
 
 `completed` contains the latest turn's final assistant text. `failed` contains
-its error. These are turn outcomes, not immutable job terminals: `send` may
+its error. `idleMs` is a measurement, not a status: Broker sets no threshold
+and never acts on it. It is absent for an agent owned by another chat, whose
+notifications do not reach this Broker. These are turn outcomes, not immutable job terminals: `send` may
 start another turn on an agent whose previous turn completed, failed, or was
 interrupted.
 
@@ -131,7 +135,8 @@ Accepts `agentId` and `message`.
 
 ### `wait_agent`
 
-Accepts one to eight agent ids and a bounded timeout. It returns immediately
+Accepts one to eight agent ids and a timeout of at most 120000 ms; a larger
+value is rejected rather than shortened. It returns immediately
 when a requested agent already has a non-running outcome. Otherwise it waits
 until any target changes materially or the timeout expires, then returns
 compact snapshots for all targets.

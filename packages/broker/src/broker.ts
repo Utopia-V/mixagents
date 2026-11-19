@@ -37,14 +37,19 @@ function nonEmptyString(value: unknown, label: string): string {
   return value;
 }
 
-function clampTimeout(value: unknown): number {
+const MAX_WAIT_MS = 120_000;
+
+function waitTimeout(value: unknown): number {
   if (value === undefined) {
     return 30_000;
   }
   if (!Number.isInteger(value) || (value as number) < 0) {
     throw new BrokerError("invalid_input", "timeoutMs must be a non-negative integer");
   }
-  return Math.min(value as number, 120_000);
+  if ((value as number) > MAX_WAIT_MS) {
+    throw new BrokerError("invalid_input", `timeoutMs must be at most ${MAX_WAIT_MS}`);
+  }
+  return value as number;
 }
 
 // Another process's App Server sends this one no notifications, so a wait on
@@ -188,7 +193,7 @@ export class Broker {
       throw new BrokerError("invalid_input", "agentIds must contain one to eight ids");
     }
     const agentIds = [...new Set(agentIdsInput as string[])];
-    const timeoutMs = clampTimeout(timeoutInput);
+    const timeoutMs = waitTimeout(timeoutInput);
     const targets: WaitTarget[] = await Promise.all(
       agentIds.map(async (agentId) => this.#runtimes.forAgent(agentId)),
     );

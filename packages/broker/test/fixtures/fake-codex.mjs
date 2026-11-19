@@ -284,6 +284,15 @@ function startTurn(thread, text) {
       }, 15);
     } else if (text.includes("approval")) {
       void askApproval(thread, turn);
+    } else if (text.includes("quiet then delta")) {
+      // Silent, then one streamed delta at 600 ms, then silent again.
+      setTimeout(() => {
+        send({
+          jsonrpc: "2.0",
+          method: "item/agentMessage/delta",
+          params: { threadId: thread.id, turnId: turn.id, itemId: `message_${turn.id}`, delta: "." },
+        });
+      }, 600);
     } else if (text.includes("slow")) {
       // Stay active until interrupted.
     } else if (text.includes("delayed")) {
