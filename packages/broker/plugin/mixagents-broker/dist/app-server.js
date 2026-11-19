@@ -418,6 +418,7 @@ export class AppServerRuntime extends EventEmitter {
             status: "starting",
             ignoredTurnIds: new Set(),
             interactions: [],
+            lastHeardAt: Date.now(),
         };
         this.#agents.set(thread.id, agent);
         this.#updated();
@@ -427,6 +428,7 @@ export class AppServerRuntime extends EventEmitter {
                 input: [{ type: "text", text: task }],
             });
             const turn = turnFromResult(turnResponse);
+            agent.lastHeardAt = Date.now();
             agent.activeTurnId = turn.id;
             agent.status = statusFromTurn(turn);
             if (agent.status === "starting") {
@@ -485,6 +487,7 @@ export class AppServerRuntime extends EventEmitter {
                 throw new BrokerError("route_mismatch", `Stored thread uses ${thread.modelProvider}, expected ${this.route.provider}`);
             }
             const agent = this.#agentFromThread(threadId, thread);
+            agent.lastHeardAt = Date.now();
             this.#agents.set(threadId, agent);
             return agent;
         }
@@ -533,6 +536,7 @@ export class AppServerRuntime extends EventEmitter {
                 const turn = turnFromResult(response);
                 agent.activeTurnId = turn.id;
             }
+            agent.lastHeardAt = Date.now();
             agent.status = "running";
         }
         catch (error) {
@@ -574,6 +578,10 @@ export class AppServerRuntime extends EventEmitter {
         }
         if (agent.error !== undefined && agent.status === "failed") {
             snapshot.error = agent.error;
+        }
+        if (agent.lastHeardAt !== undefined &&
+            (agent.status === "starting" || agent.status === "running")) {
+            snapshot.idleMs = Math.max(0, Date.now() - agent.lastHeardAt);
         }
         return snapshot;
     }
@@ -672,6 +680,7 @@ export class AppServerRuntime extends EventEmitter {
         if (!agent) {
             throw new BrokerError("unknown_interaction", `App Server requested ${method} for an unknown Broker thread`);
         }
+        agent.lastHeardAt = Date.now();
         return new Promise((resolve, reject) => {
             agent.interactions.push({
                 method,
@@ -691,6 +700,7 @@ export class AppServerRuntime extends EventEmitter {
         if (!agent) {
             return;
         }
+        agent.lastHeardAt = Date.now();
         if (method === "turn/started" && isRecord(params.turn) && typeof params.turn.id === "string") {
             agent.activeTurnId = params.turn.id;
             agent.status = "running";

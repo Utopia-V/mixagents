@@ -524,6 +524,78 @@ async function resumeRefusals(app, agentId) {
   }
 }
 
+test("wait_agent rejects a timeout above 120000 ms instead of shortening it", async () => {
+  const app = await harness();
+  try {
+    await assert.rejects(app.broker.waitAgents(["broker:missing:thread"], 120_001), {
+      code: "invalid_input",
+      message: /timeoutMs must be at most 120000/,
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test("idleMs grows while the worker is silent and resets when App Server sends anything", async () => {
+  const app = await harness();
+  try {
+    const spawned = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "quiet then delta",
+      cwd: app.workspace,
+    });
+    const startedAt = Date.now();
+    const idle = async () => (await app.broker.waitAgents([spawned.agentId], 0)).agents[0].idleMs;
+
+    await pause(200);
+    const first = await idle();
+    await pause(200);
+    const second = await idle();
+    // Nothing arrives before 600 ms, so idleMs grows with real time.
+    assert.ok(second - first >= 190, `idleMs went from ${first} to ${second}`);
+
+    // The delta is due at 600 ms; by 1500 ms it has reset the measurement,
+    // even if the fake's timer ran late.
+    await pause(1_500 - (Date.now() - startedAt));
+    const elapsed = Date.now() - startedAt;
+    const afterDelta = await idle();
+    assert.ok(afterDelta <= elapsed - 500, `idleMs ${afterDelta} after ${elapsed} ms`);
+  } finally {
+    await app.close();
+  }
+});
+
+test("idleMs is absent on finished turns and on workers owned by another session", async () => {
+  const app = await harness();
+  const other = await Broker.create(app.options);
+  try {
+    const finished = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "quick task",
+      cwd: app.workspace,
+    });
+    const completed = await app.broker.waitAgents([finished.agentId], 2_000);
+    assert.equal(completed.agents[0].status, "completed");
+    assert.equal(completed.agents[0].idleMs, undefined);
+
+    const running = await app.broker.spawnAgent({
+      route: "test-route",
+      task: "slow task",
+      cwd: app.workspace,
+    });
+    const owned = await app.broker.waitAgents([running.agentId], 0);
+    assert.equal(typeof owned.agents[0].idleMs, "number");
+    const observed = await other.waitAgents([running.agentId], 0);
+    assert.equal(observed.agents[0].status, "running");
+    assert.equal(observed.agents[0].idleMs, undefined);
+  } finally {
+    await other.close();
+    await app.close();
+  }
+});
+
 test("another session observes a running worker without taking it over", async () => {
   const app = await harness();
   const other = await Broker.create(app.options);

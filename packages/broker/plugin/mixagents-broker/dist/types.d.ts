@@ -54,6 +54,7 @@ export interface AgentSnapshot {
     status: AgentStatus;
     output?: string;
     error?: string;
+    idleMs?: number;
 }
 export interface WaitResult {
     timedOut: boolean;

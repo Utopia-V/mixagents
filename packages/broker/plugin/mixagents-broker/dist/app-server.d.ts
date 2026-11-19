@@ -14,6 +14,7 @@ interface InternalAgent {
     error?: string;
     ignoredTurnIds: Set<string>;
     interactions: PendingInteraction[];
+    lastHeardAt?: number;
 }
 export declare function renderRuntimeConfig(route: RouteConfig): string;
 export declare function runtimeIdFor(route: RouteConfig, access: Access): string;
