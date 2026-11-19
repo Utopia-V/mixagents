@@ -329,7 +329,7 @@ describe("one Broker process", () => {
       const route = routes.find((candidate) => candidate.id === id);
       assert.ok(route, `route ${id} is missing from routes`);
       assert.equal(route.available, true, `route ${id} should be available`);
-      assert.equal(route.backend, "app_server");
+      assert.equal(route.model, ROUTES[id].model);
     }
     assert.equal(mock.requests.length, 0, "routes must not contact the provider");
   });
@@ -337,7 +337,7 @@ describe("one Broker process", () => {
   promise("spawn_agent and wait_agent return the worker's final text", async () => {
     const spawned = await broker.spawn("alpha", "First task. [[reply:alpha-first]]");
     assert.ok(["starting", "running"].includes(spawned.status), `spawn status ${spawned.status}`);
-    assert.equal(spawned.backend, "app_server");
+    assert.equal(spawned.model, ROUTES.alpha.model);
     agents.followUp = spawned.agentId;
 
     const waited = await broker.wait(spawned.agentId);
@@ -440,7 +440,7 @@ describe("one Broker process", () => {
       `no known shell tool in this build; tools offered: ${first.tools.join(", ")}`,
     );
     assert.ok(
-      broker.elicitations.some((request) => /command approval/.test(request.message)),
+      broker.elicitations.some((request) => /run a command outside its sandbox/.test(request.message)),
       "the escalated command's approval request did not reach the host",
     );
 

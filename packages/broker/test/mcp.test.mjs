@@ -226,7 +226,7 @@ function spawnAgent(client, cwd, task = "simple workspace task") {
   });
 }
 
-test("the packaged STDIO server exposes the native-sized workflow", async () => {
+test("the packaged STDIO server exposes the six-tool workflow", async () => {
   const app = await launchServer({
     clientRoots: ({ workspace }) => [workspace],
     onElicitation: approve,
@@ -262,7 +262,7 @@ test("the packaged STDIO server exposes the native-sized workflow", async () => 
     assert.equal(app.client.elicitationRequests.length, 1);
     assert.match(
       app.client.elicitationRequests[0].message,
-      /worker requests command approval/,
+      /run a command outside its sandbox/,
     );
   } finally {
     await app.close();

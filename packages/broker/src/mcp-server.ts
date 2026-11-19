@@ -60,7 +60,7 @@ const TOOLS: ToolDefinition[] = [
     name: "routes",
     title: "List Broker routes",
     description:
-      "List configured provider/model routes, credential availability, and the selected backend. Makes no provider request.",
+      "List configured routes with their provider, model, access limit, and whether their credentials are available. Makes no provider request.",
     inputSchema: NO_ARGUMENTS,
     annotations: {
       readOnlyHint: true,
@@ -328,7 +328,7 @@ export class BrokerMcpServer {
           version: SERVER_VERSION,
         },
         instructions:
-          "Use routes before dispatch and pass an absolute cwd. Broker keeps provider/model fixed and returns native-sized agent results.",
+          "Call routes before dispatch and pass an absolute cwd. Each route fixes the provider and model its workers use.",
       };
     }
     if (!this.#initialized) {

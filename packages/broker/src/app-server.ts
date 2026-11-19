@@ -724,7 +724,6 @@ export class AppServerRuntime extends EventEmitter {
       route: this.route.id,
       provider: this.route.provider,
       model: this.route.model,
-      backend: "app_server",
       status: agent.status,
     };
     if (agent.output !== undefined && agent.status === "completed") {

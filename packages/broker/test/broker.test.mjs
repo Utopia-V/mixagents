@@ -88,10 +88,6 @@ test("routes are offline and expose the effective provider", async () => {
         available: true,
         missingEnvironment: [],
         maxAccess: "workspace-write",
-        backend: "app_server",
-        selectionReason:
-          "Current native Codex children cannot use a provider distinct from the controller; App Server preserves this route.",
-        nativeAgentType: null,
         default: true,
       },
     ]);
@@ -108,7 +104,6 @@ test("a managed agent returns final text and accepts a follow-up turn", async ()
       task: "first task",
       cwd: app.workspace,
     });
-    assert.equal(spawned.backend, "app_server");
     assert.equal(spawned.provider, "fake_provider");
     assert.equal(spawned.model, "fake-model");
 

@@ -7,6 +7,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+// App Server asks for approval only for what the worker's sandbox would not
+// allow, and an approved request runs outside that sandbox. The prompt says so,
+// because the user is deciding exactly that.
+const COMMAND_APPROVAL =
+  "A Broker worker asks to run a command outside its sandbox. Approving runs it once with your user account's permissions; the worker's read-only or workspace-write limit does not apply to it.";
+const FILE_CHANGE_APPROVAL =
+  "A Broker worker asks to make a file change its sandbox does not allow. Approving applies this change once, outside the sandbox.";
+
 function truncate(value: string, limit = 2_000): string {
   return value.length <= limit ? value : `${value.slice(0, limit)}…`;
 }
@@ -151,7 +159,7 @@ export async function resolveInteraction(
         return;
       }
       const decision = await askApproval(
-        "A Broker-managed worker requests command approval.",
+        COMMAND_APPROVAL,
         commandDetail(params),
         elicit,
       );
@@ -166,7 +174,7 @@ export async function resolveInteraction(
         return;
       }
       const decision = await askApproval(
-        "A Broker-managed worker requests file-change approval.",
+        FILE_CHANGE_APPROVAL,
         fileDetail(params),
         elicit,
       );
@@ -177,7 +185,7 @@ export async function resolveInteraction(
     }
     if (method === "execCommandApproval") {
       const decision = await askApproval(
-        "A Broker-managed worker requests command approval.",
+        COMMAND_APPROVAL,
         commandDetail(params),
         elicit,
       );
@@ -199,7 +207,7 @@ export async function resolveInteraction(
         return;
       }
       const decision = await askApproval(
-        "A Broker-managed worker requests file-change approval.",
+        FILE_CHANGE_APPROVAL,
         fileDetail(params),
         elicit,
       );

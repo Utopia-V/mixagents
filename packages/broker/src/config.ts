@@ -360,10 +360,6 @@ export function routeView(
     available: missingEnvironment.length === 0,
     missingEnvironment,
     maxAccess: route.maxAccess,
-    backend: "app_server",
-    selectionReason:
-      "Current native Codex children cannot use a provider distinct from the controller; App Server preserves this route.",
-    nativeAgentType: null,
     default: config.defaultRoute === route.id,
   };
   if (route.contextWindow !== undefined) {

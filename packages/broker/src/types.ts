@@ -53,9 +53,6 @@ export interface RouteView {
   available: boolean;
   missingEnvironment: string[];
   maxAccess: Access;
-  backend: "app_server";
-  selectionReason: string;
-  nativeAgentType: null;
   default: boolean;
 }
 
@@ -64,7 +61,6 @@ export interface AgentSnapshot {
   route: string;
   provider: string;
   model: string;
-  backend: "app_server";
   status: AgentStatus;
   output?: string;
   error?: string;
