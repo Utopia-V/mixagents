@@ -267,6 +267,7 @@ MCP server against the real `codex` on `PATH`, or the build named by
 in for the model, and the Codex home, Broker data directory, and workspace are
 temporary, so the check needs no provider account or key and never touches
 `~/.codex`. It covers route and credential isolation, follow-up turns, provider
-failure, interruption, restart recovery, and the credential filter on worker
-shell commands. CI runs it with the latest stable Codex every week, on pushes
-to `main`, and on pull requests that change Broker.
+failure, interruption, restart recovery, two chats sharing one data directory,
+and the credential filter on worker shell commands. CI runs it with the latest
+stable Codex every week, on pushes to `main`, and on pull requests that change
+Broker.

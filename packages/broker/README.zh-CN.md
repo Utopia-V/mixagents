@@ -233,6 +233,7 @@ server 连接真实的 Codex：默认使用 `PATH` 中的 `codex`，也可以通
 `MIXAGENTS_BROKER_CODEX_BIN` 指定其他构建。模型由测试进程内的模拟 Responses
 provider 代替，Codex home、Broker 数据目录和 workspace 均为临时目录，因此这项检查
 不需要 provider 账号或密钥，也不会读写 `~/.codex`。它覆盖 route 与凭据隔离、
-follow-up turn、provider 失败、中断、重启恢复，以及 worker shell 命令的凭据过滤。
+follow-up turn、provider 失败、中断、重启恢复、两个对话共用数据目录，以及 worker
+shell 命令的凭据过滤。
 CI 每周、每次推送到 `main` 以及每个修改 Broker 的 pull request 都会用最新的稳定版
 Codex 运行这项检查。

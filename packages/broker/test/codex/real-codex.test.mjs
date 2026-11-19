@@ -8,7 +8,7 @@
 
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { access, mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -54,8 +54,10 @@ const codexVersion = (await promisify(execFile)(codexBin, ["--version"])).stdout
 console.log(`Real Codex check against ${codexVersion} (${codexBin})`);
 
 // Names the broken promise and the Codex build in every failure.
-function promise(name, body) {
-  test(`[${codexVersion}] ${name}`, { timeout: TEST_TIMEOUT_MS }, async () => {
+function promise(name, ...rest) {
+  const body = rest.pop();
+  const options = rest[0] ?? {};
+  test(`[${codexVersion}] ${name}`, { timeout: TEST_TIMEOUT_MS, ...options }, async () => {
     try {
       await body();
     } catch (error) {
@@ -221,8 +223,15 @@ async function launchBroker(installation) {
     return result.structuredContent;
   }
 
-  return {
+  const handle = {
+    pid: child.pid,
     call,
+    // Returns the error a tool reports instead of throwing it.
+    async refusal(name, args = {}) {
+      const result = await client.request("tools/call", { name, arguments: args });
+      assert.equal(result.isError, true, `${name} succeeded: ${JSON.stringify(result.structuredContent)}`);
+      return result.structuredContent;
+    },
     elicitations: client.elicitations,
     spawn(route, task) {
       return call("spawn_agent", { route, task, cwd: installation.workspace });
@@ -232,6 +241,7 @@ async function launchBroker(installation) {
       return result.agents[0];
     },
     async close() {
+      if (child.exitCode !== null || child.signalCode !== null) return;
       child.stdin.end();
       await new Promise((resolve) => {
         const timer = setTimeout(() => {
@@ -245,6 +255,48 @@ async function launchBroker(installation) {
       });
     },
   };
+  openBrokers.add(handle);
+  return handle;
+}
+
+// Every Broker started by this file, so `after` can stop them all.
+const openBrokers = new Set();
+
+// The processes below a Broker server: Codex App Server and any wrapper.
+// Linux only, from /proc.
+async function descendants(pid) {
+  const parents = new Map();
+  for (const entry of await readdir("/proc")) {
+    if (!/^\d+$/.test(entry)) continue;
+    try {
+      const stat = await readFile(`/proc/${entry}/stat`, "utf8");
+      const parent = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
+      parents.set(Number(entry), parent);
+    } catch {
+      // The process exited while we looked.
+    }
+  }
+  const found = [];
+  const queue = [pid];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    for (const [child, parent] of parents) {
+      if (parent === current) {
+        found.push(child);
+        queue.push(child);
+      }
+    }
+  }
+  return found;
+}
+
+function isAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function describeRequests(requests) {
@@ -265,7 +317,7 @@ before(async () => {
 });
 
 after(async () => {
-  await broker?.close();
+  for (const open of openBrokers) await open.close();
   await mock?.close();
   if (installation) await rm(installation.root, { recursive: true, force: true });
 });
@@ -442,6 +494,107 @@ describe("Broker restart on the same data directory", () => {
   });
 });
 
-// Two Broker processes sharing one data directory (one owns a worker, the
-// other observes it) belong here: call launchBroker(installation) twice. They
-// are added together with the PR #14 follow-up.
+// Two Codex chats each start their own Broker over one data directory. The
+// Broker that started a worker owns it through its App Server's writer lock;
+// the other reads the thread and must not take it over while that lock is
+// held. This depends on how real Codex reports a thread loaded in another
+// process and on the wording of its writer-lock refusal.
+describe("two Broker processes on one data directory", () => {
+  let shared;
+  let owner;
+  let observer;
+  let held;
+
+  before(async () => {
+    shared = await prepareInstallation(mock);
+    owner = await launchBroker(shared);
+    observer = await launchBroker(shared);
+  });
+
+  after(async () => {
+    await owner?.close();
+    await observer?.close();
+    if (shared) await rm(shared.root, { recursive: true, force: true });
+  });
+
+  async function spawnHeld(by, label) {
+    const spawned = await by.call("spawn_agent", {
+      route: "alpha",
+      task: `Hold this open. [[mock:hold]] [[reply:${label}]]`,
+      cwd: shared.workspace,
+    });
+    await mock.waitFor(
+      (record) => record.userText.includes(`[[reply:${label}]]`),
+      WAIT_MS,
+      `the held turn ${label}`,
+    );
+    return spawned.agentId;
+  }
+
+  promise("another chat lists and waits on a running worker without an error", async () => {
+    held = await spawnHeld(owner, "shared-held");
+    const { agents: listed } = await observer.call("list_agents");
+    assert.equal(listed.find((agent) => agent.agentId === held)?.status, "running");
+    const waited = await observer.call("wait_agent", { agentIds: [held], timeoutMs: 1_500 });
+    assert.equal(waited.timedOut, true);
+    assert.equal(waited.agents[0].status, "running");
+  });
+
+  promise("another chat's send and interrupt_agent are refused as agent_owned_elsewhere", async () => {
+    assert.ok(held, "no running worker from the previous check");
+    const sent = await observer.refusal("send", { agentId: held, message: "take it" });
+    assert.equal(sent.code, "agent_owned_elsewhere", JSON.stringify(sent));
+    const interrupted = await observer.refusal("interrupt_agent", { agentId: held });
+    assert.equal(interrupted.code, "agent_owned_elsewhere", JSON.stringify(interrupted));
+  });
+
+  promise("another chat sees the owner's interrupt", async () => {
+    assert.ok(held, "no running worker from the previous check");
+    const stopped = await owner.call("interrupt_agent", { agentId: held });
+    assert.equal(stopped.agent.status, "interrupted");
+    const waited = await observer.call("wait_agent", { agentIds: [held], timeoutMs: 10_000 });
+    assert.equal(waited.timedOut, false, JSON.stringify(waited));
+    assert.equal(waited.agents[0].status, "interrupted");
+  });
+
+  promise("after the owner's Broker exits, another chat continues the thread", async () => {
+    assert.ok(held, "no worker from the previous checks");
+    await owner.close();
+    const before = mock.responseRequests().length;
+    await observer.call("send", { agentId: held, message: "Carry on. [[reply:taken-over]]" });
+    const waited = await observer.wait(held);
+    assert.equal(waited.status, "completed", JSON.stringify(waited));
+    assert.equal(waited.output, "mock final: taken-over");
+    const continued = mock.responseRequests().slice(before).at(0);
+    assert.match(
+      continued?.rawBody ?? "",
+      /\[\[reply:shared-held\]\]/,
+      "the continued turn does not carry the owner's history",
+    );
+  });
+
+  promise(
+    "after the owner's App Server is killed, another chat sees interrupted and continues",
+    { skip: process.platform !== "linux" && "finds App Server processes through /proc" },
+    async () => {
+      owner = await launchBroker(shared);
+      const crashed = await spawnHeld(owner, "crashed-held");
+      const victims = await descendants(owner.pid);
+      assert.ok(victims.length > 0, "found no App Server process under the owner's Broker");
+      for (const pid of victims) process.kill(pid, "SIGKILL");
+      const deadline = Date.now() + 10_000;
+      while (victims.some(isAlive)) {
+        assert.ok(Date.now() < deadline, "the owner's App Server did not exit");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      const waited = await observer.call("wait_agent", { agentIds: [crashed], timeoutMs: 10_000 });
+      assert.equal(waited.timedOut, false, JSON.stringify(waited));
+      assert.equal(waited.agents[0].status, "interrupted");
+      await observer.call("send", { agentId: crashed, message: "Carry on. [[reply:after-crash]]" });
+      const continued = await observer.wait(crashed);
+      assert.equal(continued.status, "completed", JSON.stringify(continued));
+      assert.equal(continued.output, "mock final: after-crash");
+    },
+  );
+});
