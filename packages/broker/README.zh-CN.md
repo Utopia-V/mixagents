@@ -121,7 +121,7 @@ source」。修好后新建一个 Codex 任务；`$broker` 还没有出现时，
 [Codex 接入说明](https://opencode.ai/docs/console/harnesses/codex)中给出的就是这个地址；
 DeepSeek V4.1 Flash 这类原生使用 Chat Completions 的模型，由 OpenCode 负责转换请求。
 DeepSeek 官方 API 的文档只列出 Chat Completions 和 Anthropic 格式的 endpoint，没有
-Responses endpoint，因此不能直接作为 route。
+Responses endpoint；本仓库没有验证过把它直接配置为 route。
 
 `workspaceRoots` 是可选的固定目录预授权，并会与 MCP client 提供的 roots 合并。`cwd`
 不在这些目录内时，Broker 会在第一次派发前请求确认。确认后只在当前 MCP 连接内授权

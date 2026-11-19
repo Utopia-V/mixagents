@@ -133,8 +133,8 @@ This route uses OpenCode Go's Responses endpoint, which OpenCode documents for
 [Codex](https://opencode.ai/docs/console/harnesses/codex); OpenCode translates
 the request for models such as DeepSeek V4.1 Flash that natively use Chat
 Completions. DeepSeek's own API documents Chat Completions and
-Anthropic-format endpoints but no Responses endpoint, so it cannot serve as a
-route directly.
+Anthropic-format endpoints but no Responses endpoint, and using it directly as
+a route has not been verified in this repository.
 
 `workspaceRoots` is optional. Its entries preauthorize fixed directories and
 are merged with roots provided by the MCP client. When `cwd` is outside those

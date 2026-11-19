@@ -12,8 +12,7 @@ process is the only way to run a worker elsewhere;
 The design stance is to borrow App Server's lifecycle (threads, turns,
 history, interruption, recovery) instead of building one, to keep the
 controller's surface at six tools and a few statuses, and to add state, fields
-or configuration only when a real failure has demanded it. The fixes merged
-from PRs #13 and #14 were cut down to that.
+or configuration only when a real failure has demanded it.
 
 A few things must stay true:
 
