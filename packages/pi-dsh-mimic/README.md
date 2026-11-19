@@ -12,6 +12,20 @@ tool catalog.
 
 It does not require the full DSH harness and adds no extra model round.
 
+## Maintenance status
+
+This package is frozen: bug fixes continue, new features do not. The experimental
+evidence dates from August 2026, on DeepSeek V4 Pro (the 0813 build) and Pi
+0.84.2. Two things have changed since.
+
+DeepSeek Harness reduced its Minimal mode to a single `bash` tool on 2026-09-03.
+This package keeps the two-tool form from August, which is the form the results
+were measured on. Pi is now at 1.5.2; the package's type check and offline tests
+pass against that version, and the real task has not been rerun on it.
+
+Maintenance ends when `deepseek-v4-pro` is superseded by a newer Pro model, or
+when a change to Pi's extension API breaks the package.
+
 ## How it works
 
 1. In a fresh target session, the original task becomes the Minimal request.
