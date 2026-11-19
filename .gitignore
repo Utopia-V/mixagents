@@ -11,3 +11,6 @@ node_modules/
 __pycache__/
 *.py[cod]
 *.local.md
+
+# Built by `npm run build` in packages/broker; published from npm, not git.
+packages/broker/plugin/mixagents-broker/dist/

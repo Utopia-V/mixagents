@@ -14,7 +14,9 @@ npm --prefix packages/pi-dsh-mimic run check
 npm --prefix packages/pi-dsh-mimic run pack:check
 ```
 
-这些检查不调用真实 provider，Pull Request 提交后 CI 也会自动运行它们。
+这些检查不调用真实 provider，Pull Request 提交后 CI 也会自动运行它们。Broker 的 `plugin/mixagents-broker/dist` 由构建生成，不需要提交。
+
+改动 Broker 与 Codex App Server 交互的部分时，再运行 `npm --prefix packages/broker run test:codex`。它用本机安装的 `codex` 和测试自带的 mock provider 运行 Broker，不需要 provider 账号。
 
 Codex 和 Pi 已经提供的生命周期、权限和 session 机制，请优先直接使用；需要新增持久状态或兼容层时，在 PR 中说明现有机制为什么不够。
 
