@@ -28,8 +28,8 @@ history repairs the state on reload.
 
 On one frozen Project2 V4.1b long-horizon maintenance task, default Pi scored
 92. Four final runs of the same one-shot flow scored 98, 96, 96, and 98. This
-comparison supports the current first-request design; it does not establish a
-general result across projects, model revisions, or evaluations.
+is one personal task and four runs; other projects, model revisions, and
+evaluations have not been tested.
 
 See [Experiments and design](docs/advanced.md) for conditions, negative results,
 and implementation choices. The [Project2 evidence ledger](docs/project2-evidence.md)
@@ -38,10 +38,9 @@ contains the complete runs and evaluator sources.
 ## Install and use
 
 Requirements: Node.js 22.19 or later, Pi 0.84.2 or later, and a provider
-configured in Pi whose model id contains `deepseek-v4-pro`. The official
-DeepSeek API and OpenCode Go are the repository-qualified routes. The extension
-also activates for third-party providers; compatibility, data handling, and
-billing then follow the provider selected by the user.
+configured in Pi whose model id contains `deepseek-v4-pro`. It has been tested
+with the official DeepSeek API and OpenCode Go; any other provider with such a
+model id activates it too.
 
 Install for the current user:
 
@@ -83,8 +82,8 @@ new session when a clean non-target tool catalog matters.
 
 `str_replace_editor` can view, create, and modify absolute paths with the Pi
 process's filesystem permissions. The task, context, and tool results are sent
-to the provider selected by the user. The extension does not read or store API
-keys. See [SECURITY.md](SECURITY.md) for the full boundary.
+to the provider you select in Pi, which bills them as ordinary requests. See
+[SECURITY.md](SECURITY.md) for details.
 
 ## Development
 
@@ -97,5 +96,4 @@ npm run pack:check
 
 The Minimal persona and two tool protocols come from DeepSeek Harness's
 [public Minimal protocol](https://github.com/deepseek-ai/deepseek-harness). See
-[LICENSE](LICENSE) and [NOTICE](NOTICE). This project is not affiliated with or
-endorsed by Pi, DeepSeek, OpenCode, or OpenAI.
+[LICENSE](LICENSE) and [NOTICE](NOTICE).

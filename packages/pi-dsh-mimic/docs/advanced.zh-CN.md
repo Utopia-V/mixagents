@@ -3,20 +3,20 @@
 # 用 DSH Minimal 启动 V4 Pro，再回到 Pi
 
 `pi-dsh-mimic` 只模拟 DSH 最有价值的一小段：第一次模型请求。真实任务进入 Minimal
-persona 与 `bash/str_replace_editor` 两工具环境，V4 Pro 由此进入已验证的高能力工程
-轨迹；第一次有效响应后，请求恢复为 Pi 原生格式，模型继续使用 Pi 的完整工具目录和其他
-插件。
+persona 与 `bash/str_replace_editor` 两工具环境，V4 Pro 由此进入本文实验中的高分
+工程轨迹；第一次有效响应后，请求恢复为 Pi 原生格式，模型继续使用 Pi 的完整工具目录
+和其他插件。
 
 这条路线不需要复刻完整 DSH harness。DSH Minimal 提供首请求的训练接口，Pi 继续负责
-session、工具执行、文件编辑和插件组合。用户既能获得 Project2 中反复出现的 96–98 分
-能力档，也保留了 Pi 作为成熟 Agent runtime 的优势。
+session、工具执行、文件编辑和插件组合。在 Project2 上，这一流程多次得到 96–98 分，
+Agent runtime 仍然是 Pi。
 
 ## 实验口径
 
 Project2 V4.1b 是一个个人、自托管的长程代码维护评测。模型接手一个故意保留缺陷的
 多模块 Python 后端与 ESP32-S3 固件仓库，完成鉴权与 session 隐私、数据库迁移、跨模块
-功能、兼容性、Wi-Fi/MQTT/NVS/协议与 ESP-IDF 契约，以及最终交付证据。它不是通用
-benchmark。
+功能、兼容性、Wi-Fi/MQTT/NVS/协议与 ESP-IDF 契约，以及最终交付证据。下文所有结果
+都来自这一个任务。
 
 本地实验使用这套 Project2 V4.1b 任务，冻结于提交
 `04255b55f16c4439e538239fb9783070c4165081`。同一运行中断后续跑时，只记录最终交卷分；
@@ -26,16 +26,16 @@ benchmark。
 ambient-session 安全边界、F6 数据库迁移、F8 ESP 契约、hidden tests 和完整交付。
 Evaluator IDs 与排除项见[证据账本](project2-evidence.md)。
 
-## DSH Minimal 证明能力可达
+## 外部 DSH 结果
 
-外部同题结果给出了清楚的校准：DSH Minimal 在相同 WSL/max/build 条件下得到 99、96，
+外部同题结果可以作为校准：DSH Minimal 在相同 WSL/max/build 条件下得到 99、96，
 Standard 为 91，PTC 为 92。后来的 Anchored Standard 又在首次工具调用后从两个工具恢复
 到 25 个工具，并得到 98、99。
 
-这些结果揭示了两个关键事实：首请求的 persona 与 schema 会影响 V4 Pro 的工程轨迹；
-轨迹建立后，完整工具目录并不会自动破坏它。`pi-dsh-mimic` 把这两个事实带进 Pi。
+这些结果说明了两点：首请求的 persona 与 schema 会影响 V4 Pro 的工程轨迹；
+轨迹建立后，完整工具目录并不会自动破坏它。`pi-dsh-mimic` 把这两点带进 Pi。
 
-## Pi 中的决定性对照
+## Pi 中的对照
 
 同批本地对照把主要差异定位到首请求：
 
@@ -48,7 +48,7 @@ Standard 为 91，PTC 为 92。后来的 Anchored Standard 又在首次工具调
 context 必须显式携带 `session_id`，voice 路径先取得 current session 再传回。这个自纠
 直接解释了 F3 16/16，比首行短语更接近真正的能力差异。
 
-## 负结果如何收窄实现
+## 负结果
 
 后续实验逐项排除了其他解释：
 
@@ -73,8 +73,7 @@ context 必须显式携带 `session_id`，voice 路径先取得 current session 
 | 当前独立实现 | OpenCode Go | **98** | 16 | 10 | 7 |
 
 OpenCode Go 的初始请求在生成 token 前遇到账户 opt-in 403。同一 session 完成 opt-in 后
-续跑，模型最终自然 `stop` 并得到 98。这次运行验证了当前实现能够通过 OpenCode Go
-进入同一高分档。
+续跑，模型最终自然 `stop` 并得到 98。
 
 DeepSeek 官方 API 与 OpenCode Go 都得到 96–98 分，当前能力差异无需再用“OpenCode
 提供的 V4 更弱”解释。
@@ -91,9 +90,6 @@ DeepSeek 官方 API 与 OpenCode Go 都得到 96–98 分，当前能力差异�
 扩展从不调用 `setActiveTools`，也不覆盖 Pi 的 `bash`、`read`、`edit` 或 `write`。它只在
 目标新 session 武装时注册一个可执行 `str_replace_editor`。请求 #2 起，Pi 重新掌管
 provider payload 和 active catalog，其他 package 的工具会自然出现。
-
-这正是 mimic 与完整 harness port 的区别：它只负责让首请求进入 DSH Minimal 分布，
-任务执行仍由 Pi 负责。
 
 ## 产品行为与证据
 

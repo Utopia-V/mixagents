@@ -23,8 +23,8 @@ assistant/tool 历史会把状态修正到执行阶段。
 ## 实验结果
 
 在一个冻结的 Project2 V4.1b 长程代码维护任务中，默认 Pi 得到 92；使用相同 one-shot
-流程的四次最终结果为 98、96、96、98。这个对照支持当前首请求设计，但不能直接外推到
-其他项目、模型版本或评测。
+流程的四次最终结果为 98、96、96、98。这是一个个人任务上的四次运行，其他项目、模型
+版本和评测尚未测试。
 
 实验条件、负结果和实现取舍见[实验与设计](docs/advanced.zh-CN.md)，完整运行与 evaluator
 来源见 [Project2 证据账本](docs/project2-evidence.md)。
@@ -32,8 +32,8 @@ assistant/tool 历史会把状态修正到执行阶段。
 ## 安装和使用
 
 要求：Node.js 22.19 或更新版本、Pi 0.84.2 或更新版本，并已在 Pi 中配置模型标识包含
-`deepseek-v4-pro` 的 provider。DeepSeek 官方 API 与 OpenCode Go 是本仓库已验证的路径；
-第三方 provider 也会激活扩展，其兼容性、数据边界和计费由用户选择的 provider 决定。
+`deepseek-v4-pro` 的 provider。扩展已在 DeepSeek 官方 API 与 OpenCode Go 上测试过；
+其他 provider 只要模型标识满足这一条件，也会激活扩展。
 
 安装到当前用户：
 
@@ -72,8 +72,8 @@ OpenCode Go 使用 Pi 预期的 `OPENCODE_API_KEY` 环境变量，并将 provide
 | Payload | DSH Minimal 形状 | Pi 原生编码与排序 |
 
 `str_replace_editor` 可以查看、创建和修改绝对路径文件，并继承 Pi 进程的文件系统权限。
-任务、上下文和工具结果会发送给用户选择的 provider。扩展不读取或保存 API key；完整
-边界见 [SECURITY.md](SECURITY.md)。
+任务、上下文和工具结果会发送给你在 Pi 中选择的 provider，按普通请求计费。详细说明见
+[SECURITY.md](SECURITY.md)。
 
 ## 开发
 
@@ -86,5 +86,4 @@ npm run pack:check
 
 Minimal persona 与两项工具协议来自 DeepSeek Harness 的
 [公开 Minimal 协议](https://github.com/deepseek-ai/deepseek-harness)，许可见
-[LICENSE](LICENSE) 和 [NOTICE](NOTICE)。本项目与 Pi、DeepSeek、OpenCode 或 OpenAI
-均无隶属或官方背书关系。
+[LICENSE](LICENSE) 和 [NOTICE](NOTICE)。
