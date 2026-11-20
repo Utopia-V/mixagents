@@ -7,6 +7,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { buildProcessInvocation, resolveCodexProcess } from "./codex-process.js";
 import { BrokerError, errorMessage } from "./errors.js";
 import { JsonLinePeer, JsonRpcRemoteError } from "./jsonrpc.js";
+import { BROKER_VERSION } from "./version.js";
 import type {
   Access,
   AgentSnapshot,
@@ -492,7 +493,7 @@ export class AppServerRuntime extends EventEmitter {
           clientInfo: {
             name: "mixagents_broker",
             title: "MixAgents Broker",
-            version: "0.1.1",
+            version: BROKER_VERSION,
           },
           capabilities: null,
         },

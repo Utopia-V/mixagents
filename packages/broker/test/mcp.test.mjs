@@ -4,6 +4,7 @@ import {
   chmod,
   mkdtemp,
   mkdir,
+  readFile,
   realpath,
   rm,
   symlink,
@@ -233,6 +234,12 @@ test("the packaged STDIO server exposes the six-tool workflow", async () => {
   });
   try {
     assert.equal(app.initialized.serverInfo.name, "mixagents-broker");
+    assert.equal(
+      app.initialized.serverInfo.version,
+      JSON.parse(
+        await readFile(new URL("../plugin/mixagents-broker/package.json", import.meta.url), "utf8"),
+      ).version,
+    );
 
     const listedTools = await app.client.request("tools/list");
     assert.deepEqual(

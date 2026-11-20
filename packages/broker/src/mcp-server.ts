@@ -9,8 +9,8 @@ import type {
   JsonValue,
   ProcessSpec,
 } from "./types.js";
+import { BROKER_VERSION } from "./version.js";
 
-const SERVER_VERSION = "0.1.1";
 const PROTOCOL_VERSION = "2025-11-25";
 const SUPPORTED_PROTOCOL_VERSIONS = new Set([
   "2025-11-25",
@@ -325,7 +325,7 @@ export class BrokerMcpServer {
         serverInfo: {
           name: "mixagents-broker",
           title: "MixAgents Broker",
-          version: SERVER_VERSION,
+          version: BROKER_VERSION,
         },
         instructions:
           "Call routes before dispatch and pass an absolute cwd. Each route fixes the provider and model its workers use.",
